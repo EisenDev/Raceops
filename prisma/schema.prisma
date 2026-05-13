@@ -1,0 +1,212 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  FACILITATOR
+}
+
+enum GameStatus {
+  DRAFT
+  ACTIVE
+  COMPLETED
+}
+
+enum TechOpsCardStatus {
+  ACTIVE
+  USED
+  VOID
+}
+
+enum EditRequestStatus {
+  PENDING
+  APPROVED
+  DECLINED
+}
+
+enum EditRequestModule {
+  GAME_SCORE
+  TECHOPS
+  BOUNTY
+}
+
+enum ScoringMode {
+  TEAM_TOTAL
+  MEMBER_BREAKDOWN
+}
+
+model User {
+  id               String        @id @default(uuid())
+  name             String
+  username         String        @unique
+  passwordHash     String
+  role             Role          @default(FACILITATOR)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  submittedScores  GameScore[]   @relation("SubmittedBy")
+  reviewedRequests EditRequest[] @relation("ReviewedBy")
+  sentRequests     EditRequest[] @relation("RequestedBy")
+  auditLogs        AuditLog[]
+  generatedCards   TechOpsCard[] @relation("GeneratedBy")
+  scans            TechOpsScan[]
+}
+
+model Team {
+  id           String        @id @default(uuid())
+  name         String        @unique
+  code         String        @unique
+  color        String?
+  totalScore   Int           @default(0)
+  techOpsScore Int           @default(0)
+  bountyScore  Int           @default(0)
+  members      TeamMember[]
+  gameScores   GameScore[]
+  techOpsCards TechOpsCard[]
+  scans        TechOpsScan[]
+  bounties     Bounty[]
+  editRequests EditRequest[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model TeamMember {
+  id           String        @id @default(uuid())
+  teamId       String
+  team         Team          @relation(fields: [teamId], references: [id])
+  name         String
+  memberScores MemberScore[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model Game {
+  id         String      @id @default(uuid())
+  name       String
+  mechanics  String?
+  maxPoints  Int         @default(100)
+  status     GameStatus  @default(DRAFT)
+  gameScores GameScore[]
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+}
+
+model GameScore {
+  id            String        @id @default(uuid())
+  gameId        String
+  game          Game          @relation(fields: [gameId], references: [id])
+  teamId        String
+  team          Team          @relation(fields: [teamId], references: [id])
+  totalPoints   Int           @default(0)
+  scoringMode   ScoringMode   @default(TEAM_TOTAL)
+  submittedById String
+  submittedBy   User          @relation("SubmittedBy", fields: [submittedById], references: [id])
+  locked        Boolean       @default(false)
+  memberScores  MemberScore[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@unique([gameId, teamId])
+}
+
+model MemberScore {
+  id           String     @id @default(uuid())
+  gameScoreId  String
+  gameScore    GameScore  @relation(fields: [gameScoreId], references: [id])
+  teamMemberId String
+  teamMember   TeamMember @relation(fields: [teamMemberId], references: [id])
+  points       Int        @default(0)
+  note         String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+model TechOpsCard {
+  id            String            @id @default(uuid())
+  code          String            @unique
+  qrPayload     String            @unique
+  type          String
+  label         String
+  clue          String?
+  points        Int               @default(0)
+  status        TechOpsCardStatus @default(ACTIVE)
+  generatedById String
+  generatedBy   User              @relation("GeneratedBy", fields: [generatedById], references: [id])
+  usedByTeamId  String?
+  usedByTeam    Team?             @relation(fields: [usedByTeamId], references: [id])
+  usedAt        DateTime?
+  scans         TechOpsScan[]
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+}
+
+model TechOpsScan {
+  id            String   @id @default(uuid())
+  cardId        String
+  card          TechOpsCard @relation(fields: [cardId], references: [id])
+  teamId        String
+  team          Team     @relation(fields: [teamId], references: [id])
+  scannedById   String
+  scannedBy     User     @relation(fields: [scannedById], references: [id])
+  pointsApplied Int      @default(0)
+  result        String?
+  createdAt     DateTime @default(now())
+}
+
+model Bounty {
+  id        String   @id @default(uuid())
+  teamId    String
+  team      Team     @relation(fields: [teamId], references: [id])
+  code      String   @unique
+  status    String   @default("AVAILABLE")
+  points    Int      @default(100)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model EditRequest {
+  id             String            @id @default(uuid())
+  module         EditRequestModule
+  referenceId    String
+  teamId         String
+  team           Team              @relation(fields: [teamId], references: [id])
+  requestedById  String
+  requestedBy    User              @relation("RequestedBy", fields: [requestedById], references: [id])
+  currentValue   Json
+  requestedValue Json
+  reason         String
+  status         EditRequestStatus @default(PENDING)
+  adminRemarks   String?
+  reviewedById   String?
+  reviewedBy     User?             @relation("ReviewedBy", fields: [reviewedById], references: [id])
+  reviewedAt     DateTime?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  actorId     String
+  actor       User     @relation(fields: [actorId], references: [id])
+  action      String
+  module      String?
+  referenceId String?
+  details     Json?
+  createdAt   DateTime @default(now())
+}
+
+model GameSetting {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
