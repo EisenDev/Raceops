@@ -4,6 +4,7 @@ import { z } from 'zod';
 import db from '@/lib/db';
 import { getCurrentUser } from '@/lib/session';
 import { revalidatePath } from 'next/cache';
+import { isScoresLocked } from './settings';
 
 const generateCardsSchema = z.object({
   type: z.string().min(1),
@@ -76,6 +77,10 @@ export async function generateTechOpsCards(prevState: unknown, formData: FormDat
   const user = await getCurrentUser();
   if (!user || user.role !== 'ADMIN') return { error: 'Unauthorized.' };
 
+  if (await isScoresLocked()) {
+    return { error: 'Scores are locked. No new cards can be generated.' };
+  }
+
   const type = formData.get('type') as string;
   const amount = parseInt(formData.get('amount') as string);
   const customPoints = formData.get('points') ? parseInt(formData.get('points') as string) : undefined;
@@ -127,6 +132,10 @@ export async function generateTechOpsCards(prevState: unknown, formData: FormDat
 export async function scanTechOpsCard(prevState: unknown, formData: FormData) {
   const user = await getCurrentUser();
   if (!user) return { error: 'Unauthorized.' };
+
+  if (await isScoresLocked()) {
+    return { error: 'Scores are locked. Scanning is disabled.' };
+  }
 
   const teamId = formData.get('teamId') as string;
   let code = formData.get('code') as string;

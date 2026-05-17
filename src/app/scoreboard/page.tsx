@@ -1,77 +1,144 @@
-import { SectionHeader } from '@/components/ui/SectionHeader';
 import { PageSection } from '@/components/ui/PageSection';
 import { Card } from '@/components/ui/Card';
-import { Trophy, MapPin } from 'lucide-react';
+import { Zap } from 'lucide-react';
 import db from '@/lib/db';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { cn } from '@/lib/utils';
+import { getSetting } from '@/lib/actions/settings';
+import { RealtimeRefresh } from '@/components/ui/RealtimeRefresh';
+import { formatSeconds } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 
 export default async function PublicScorePage() {
-  const teams = await db.team.findMany({
-    orderBy: {
-      totalScore: 'desc'
-    }
-  });
+  const [rawTeams, scoresLocked] = await Promise.all([
+    db.team.findMany({
+      include: {
+        gameScores: {
+          select: { totalPoints: true }
+        }
+      }
+    }),
+    getSetting('scoresLocked').then(v => v === 'true')
+  ]);
+  
+  const teams = rawTeams
+    .map((team) => ({
+      ...team,
+      completedGames: team.gameScores.length,
+      gameTotal: team.gameScores.reduce((sum, score) => sum + score.totalPoints, 0),
+    }))
+    .sort((a, b) => b.completedGames - a.completedGames || a.gameTotal - b.gameTotal || a.name.localeCompare(b.name));
 
   return (
-    <main className="min-h-screen bg-white p-6 md:p-12 lg:p-24">
-      <PageSection spacing="lg" className="max-w-6xl mx-auto">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-8 border-b border-[#1A1A1A]/10 pb-12">
+    <main className="min-h-screen bg-background p-6 md:p-12 lg:p-24 selection:bg-accent/30 overflow-x-hidden">
+      <RealtimeRefresh showIndicator={false} />
+      
+      <PageSection spacing="lg" className="max-w-6xl mx-auto relative z-10">
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-10 mb-20">
           <div className="space-y-4">
-             <div className="inline-flex items-center gap-2 px-3 py-1 bg-[#1A1A1A] text-white rounded-full">
-                <MapPin size={12} />
-                <span className="text-[10px] font-black uppercase tracking-[0.2em]">Live Scoreboard</span>
+             <div className="space-y-2">
+                <h1 className="text-6xl md:text-8xl font-semibold tracking-tight text-white leading-none">
+                  Standings
+                </h1>
+                <p className="text-xl md:text-2xl font-medium text-muted-foreground tracking-tight opacity-70">
+                  Infosoft Amazing Race 2026
+                </p>
              </div>
-             <SectionHeader 
-               title="Infosoft Amazing Race 2026" 
-               description="Real-time rankings and team standings."
-               className="pb-0"
-             />
           </div>
-          <div className="flex flex-col items-start md:items-end gap-1">
-             <p className="text-[10px] font-black uppercase tracking-[0.3em] text-[#999999]">Status</p>
-             <p className="text-xl font-black text-[#1A1A1A]">Official Rankings</p>
+          
+          <div className="flex gap-10">
+            <div className="space-y-1">
+               <p className="text-xs font-medium text-muted-foreground opacity-50">Status</p>
+               <p className={cn(
+                 "text-2xl font-semibold tracking-tight",
+                 scoresLocked ? "text-red-500" : "text-emerald-500"
+               )}>
+                 {scoresLocked ? 'Official' : 'Live'}
+               </p>
+            </div>
+            <div className="space-y-1 text-right">
+               <p className="text-xs font-medium text-muted-foreground opacity-50">Teams</p>
+               <p className="text-2xl font-semibold text-white tracking-tight">
+                 {teams.length}
+               </p>
+            </div>
           </div>
         </div>
 
         {teams.length === 0 ? (
           <EmptyState 
-            title="No teams registered"
-            description="The race standings will appear here once teams are added to the system."
-            icon={<Trophy size={32} />}
+            title="Awaiting results"
+            description="Standings will appear once teams begin recording mission scores."
+            icon={<Zap size={40} className="text-accent/20" />}
           />
         ) : (
-          <div className="grid grid-cols-1 gap-4 pt-4">
-            <div className="hidden md:grid grid-cols-12 px-8 text-[10px] font-black uppercase tracking-widest text-[#999999]">
-              <div className="col-span-1">Rank</div>
-              <div className="col-span-6">Team</div>
-              <div className="col-span-5 text-right">Grand Total</div>
-            </div>
-
+          <div className="grid grid-cols-1 gap-4">
             {teams.map((team, i) => (
-              <Card key={team.id} className={cn(
-                "border-none shadow-none py-2 transition-all",
-                i === 0 ? "bg-[#1A1A1A] text-white shadow-xl scale-[1.02]" : "bg-[#F9F9F9]"
-              )}>
-                <div className="grid grid-cols-4 md:grid-cols-12 items-center px-6 md:px-8 py-4 gap-4">
-                  <div className="col-span-1 flex items-center gap-2">
-                    <span className="text-2xl font-black tabular-nums">{i + 1}</span>
-                    {i === 0 && <Trophy size={20} className="text-yellow-400" />}
-                  </div>
-                  <div className="col-span-2 md:col-span-6">
-                    <div className="flex items-center gap-3">
+              <Card 
+                key={team.id} 
+                variant={i === 0 ? 'ivory' : 'default'}
+                className={cn(
+                  "py-4 border-white/5 transition-all duration-500",
+                  i === 0 ? "scale-[1.02] shadow-2xl z-10" : "bg-white/[0.02] hover:bg-white/[0.04]"
+                )}
+              >
+                <div className="flex flex-col md:flex-row items-center justify-between px-10 py-6 gap-8 relative z-10">
+                  <div className="flex items-center gap-10 w-full md:w-auto">
+                    <div className="flex items-center gap-4">
+                       <span className={cn(
+                         "text-5xl font-semibold tabular-nums tracking-tighter",
+                         i === 0 ? "text-neutral-900" : "text-white"
+                       )}>
+                         {i + 1}
+                       </span>
+                    </div>
+                    
+                    <div className="flex items-center gap-6">
                       <div 
-                        className="w-3 h-3 rounded-full shrink-0 shadow-sm" 
-                        style={{ backgroundColor: team.color || '#1A1A1A' }} 
+                        className={cn(
+                          "w-1 h-10 rounded-full",
+                          i === 0 ? "bg-black/10" : ""
+                        )}
+                        style={{ backgroundColor: i === 0 ? undefined : (team.color || '#C5A059') }} 
                       />
-                      <span className="text-lg font-black tracking-tight uppercase truncate">{team.name}</span>
+                      <div className="space-y-0.5">
+                        <p className={cn(
+                          "text-xs font-medium",
+                          i === 0 ? "text-neutral-500" : "text-muted-foreground opacity-60"
+                        )}>Team</p>
+                        <h2 className={cn(
+                          "text-3xl font-semibold tracking-tight",
+                          i === 0 ? "text-neutral-900" : "text-white"
+                        )}>{team.name}</h2>
+                      </div>
                     </div>
                   </div>
-                  <div className="col-span-1 md:col-span-5 text-right">
-                    <span className="text-2xl md:text-4xl font-black tabular-nums">{team.totalScore}</span>
-                    <span className="text-[10px] font-bold uppercase ml-2 opacity-50">PTS</span>
+
+                  <div className="flex items-center justify-between md:justify-end gap-16 w-full md:w-auto border-t md:border-t-0 border-black/5 pt-6 md:pt-0">
+                    <div className="space-y-0.5 text-center md:text-right">
+                       <p className={cn(
+                         "text-xs font-medium",
+                         i === 0 ? "text-neutral-500" : "text-muted-foreground opacity-60"
+                       )}>Progress</p>
+                       <p className={cn(
+                         "text-lg font-semibold",
+                         i === 0 ? "text-neutral-800" : "text-white/80"
+                       )}>{team.completedGames} Games</p>
+                    </div>
+                    
+                    <div className="space-y-0.5 text-right">
+                      <p className={cn(
+                         "text-xs font-medium",
+                         i === 0 ? "text-neutral-500" : "text-muted-foreground opacity-60"
+                       )}>Total Time</p>
+                      <div className="flex items-baseline gap-3">
+                         <span className={cn(
+                           "text-5xl font-semibold tabular-nums tracking-tighter",
+                           i === 0 ? "text-neutral-900" : "text-white"
+                         )}>{formatSeconds(team.gameTotal)}</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </Card>
@@ -79,13 +146,13 @@ export default async function PublicScorePage() {
           </div>
         )}
 
-        <div className="mt-24 pt-8 border-t border-[#1A1A1A]/5 flex flex-col md:flex-row justify-between items-center gap-8 text-center md:text-left">
-           <div className="flex flex-col items-center md:items-start gap-1">
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#999999]">Powered By</p>
-              <p className="text-sm font-black tracking-[0.4em] text-[#1A1A1A]">RACEOPS</p>
+        <div className="mt-32 pt-12 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-10 text-center md:text-left">
+           <div className="flex items-center gap-3">
+              <span className="text-xl font-semibold tracking-tight text-white">RaceOps</span>
+              <span className="text-xs font-medium text-muted-foreground opacity-40">2026</span>
            </div>
-           <p className="text-[10px] font-bold text-[#999999] max-w-xs leading-relaxed uppercase tracking-widest">
-              Official live scoring for Infosoft Amazing Race 2026.
+           <p className="text-xs font-medium text-muted-foreground/60 max-w-sm leading-relaxed">
+              Official scoring for Infosoft Amazing Race 2026. Data is refreshed automatically.
            </p>
         </div>
       </PageSection>

@@ -6,16 +6,29 @@ interface MetricCardProps {
   value: string | number;
   description?: string;
   className?: string;
+  variant?: 'default' | 'ivory';
 }
 
-export function MetricCard({ label, value, description, className }: MetricCardProps) {
+export function MetricCard({ label, value, description, className, variant = 'default' }: MetricCardProps) {
   return (
-    <Card className={cn('p-5', className)}>
-      <div className="space-y-1">
-        <span className="text-[10px] font-bold text-[#666666] uppercase tracking-[0.1em]">{label}</span>
-        <div className="text-3xl font-black text-[#1A1A1A]">{value}</div>
+    <Card 
+      variant={variant}
+      className={cn('p-6 relative overflow-hidden group border-white/5', className)}
+    >
+      <div className="space-y-2 relative z-10">
+        <span className={cn(
+          "text-[11px] font-medium opacity-50",
+          variant === 'default' ? "text-foreground" : "text-ivory-foreground"
+        )}>{label}</span>
+        <div className={cn(
+          "text-3xl font-semibold tracking-tight",
+          variant === 'default' ? "text-white" : "text-ivory-foreground"
+        )}>{value}</div>
         {description && (
-          <p className="text-xs text-[#999999] font-medium">{description}</p>
+          <p className={cn(
+            "text-xs font-medium opacity-40",
+            variant === 'default' ? "text-foreground" : "text-ivory-foreground"
+          )}>{description}</p>
         )}
       </div>
     </Card>

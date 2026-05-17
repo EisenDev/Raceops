@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/Input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { StatusMessage } from '@/components/ui/StatusMessage';
 import { updateTeam, deleteTeam } from '@/lib/actions/teams';
-import { X, Save, Trash2 } from 'lucide-react';
+import { X, Save, Trash2, User } from 'lucide-react';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
 
 interface EditTeamModalProps {
@@ -14,10 +14,13 @@ interface EditTeamModalProps {
     id: string;
     name: string;
     color: string | null;
+    assignedFacilitatorId?: string | null;
   };
+  facilitators: { id: string; name: string }[];
+  disabled?: boolean;
 }
 
-export function EditTeamModal({ team }: EditTeamModalProps) {
+export function EditTeamModal({ team, facilitators, disabled = false }: EditTeamModalProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [teamColor, setTeamColor] = useState(team.color || '#1A1A1A');
@@ -34,7 +37,7 @@ export function EditTeamModal({ team }: EditTeamModalProps) {
 
   return (
     <>
-      <Button variant="ghost" size="sm" onClick={handleOpen}>
+      <Button variant="ghost" size="sm" onClick={handleOpen} disabled={disabled}>
         Edit
       </Button>
 
@@ -42,6 +45,7 @@ export function EditTeamModal({ team }: EditTeamModalProps) {
         <EditTeamModalContent 
           key={modalKey}
           team={team} 
+          facilitators={facilitators}
           teamColor={teamColor}
           setTeamColor={setTeamColor}
           onClose={() => setIsOpen(false)}
@@ -76,13 +80,15 @@ export function EditTeamModal({ team }: EditTeamModalProps) {
 
 function EditTeamModalContent({ 
   team, 
+  facilitators,
   teamColor, 
   setTeamColor, 
   onClose,
   onShowDelete,
   isDeleting
 }: { 
-  team: { id: string; name: string; color: string | null }; 
+  team: { id: string; name: string; color: string | null; assignedFacilitatorId?: string | null }, 
+  facilitators: { id: string; name: string }[],
   teamColor: string, 
   setTeamColor: (c: string) => void, 
   onClose: () => void,
@@ -99,8 +105,8 @@ function EditTeamModalContent({
   }, [state?.success, onClose]);
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <Card className="w-full max-w-md shadow-2xl relative">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto">
+      <Card className="w-full max-w-lg shadow-2xl relative my-8 text-left">
         <button 
           onClick={onClose}
           className="absolute top-4 right-4 text-[#999999] hover:text-[#1A1A1A] transition-colors"
@@ -123,9 +129,28 @@ function EditTeamModalContent({
               />
             )}
 
-            <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-[#1A1A1A]">Team Name</label>
-              <Input name="name" defaultValue={team.name} required />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-[#1A1A1A]">Team Name</label>
+                <Input name="name" defaultValue={team.name} required />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-[#1A1A1A]">Assigned Facilitator</label>
+                <div className="relative">
+                  <select 
+                    name="assignedFacilitatorId" 
+                    defaultValue={team.assignedFacilitatorId || ""}
+                    className="flex h-12 w-full rounded-lg border border-[#1A1A1A]/10 bg-white pl-10 pr-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-[#1A1A1A]/20 transition-all appearance-none"
+                  >
+                    <option value="">No Facilitator</option>
+                    {facilitators.map(f => (
+                      <option key={f.id} value={f.id}>{f.name}</option>
+                    ))}
+                  </select>
+                  <User size={16} className="absolute left-3 top-4 text-[#999999]" />
+                </div>
+              </div>
             </div>
 
             <div className="space-y-2">

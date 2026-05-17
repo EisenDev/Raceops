@@ -17,3 +17,8 @@
 ## 4. Public Access
 - The `/score` page is publicly accessible but strictly **Read-Only**.
 - No sensitive data (usernames, logs, facilitator names) is exposed on the public route.
+
+## 5. Code Runner Security
+- **No Execution**: The Code Runner does not execute any submitted code. It uses pattern matching and controlled validation rules.
+- **Suppressed Errors**: Detailed syntax error messages are suppressed to prevent participants from gaining exact knowledge of the expected solution through the runner's output.
+- **Route Protection**: The `/code-runner` route is protected and restricted to authenticated staff only.

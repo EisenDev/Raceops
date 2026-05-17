@@ -1,58 +1,73 @@
-import { SectionHeader } from '@/components/ui/SectionHeader';
 import { PageSection } from '@/components/ui/PageSection';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
-import { Badge } from '@/components/ui/Badge';
-import { Target } from 'lucide-react';
+import { BountyList } from '@/components/modules/bounty/BountyList';
+import { BountyClaimForm } from '@/components/modules/bounty/BountyClaimForm';
+import { BountySetupPanel } from '@/components/modules/bounty/BountySetupPanel';
 import db from '@/lib/db';
-import { EmptyState } from '@/components/ui/EmptyState';
+import { getCurrentUser } from '@/lib/session';
+import { Target, Shield, Info } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
 export default async function BountyPage() {
-  const teams = await db.team.findMany({
-    orderBy: { name: 'asc' }
-  });
+  const user = await getCurrentUser();
+  if (!user) return null;
+
+  const isAdmin = user.role === 'ADMIN';
+
+  const [bounties, teams] = await Promise.all([
+    db.bounty.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: {
+        team: { select: { name: true } },
+        claimedByTeam: { select: { name: true } },
+      },
+    }),
+    db.team.findMany({
+      orderBy: { name: 'asc' },
+      select: { id: true, name: true },
+    }),
+  ]);
 
   return (
-    <PageSection className="py-4">
-      <SectionHeader 
-        title="Bounty System" 
-        description="Strategic high-value team scoring. One bounty per team."
-      />
-
-      {teams.length === 0 ? (
-        <EmptyState 
-          title="No teams registered"
-          description="Register teams first to enable the bounty system."
-          icon={<Target size={32} />}
-        />
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {teams.map((team) => (
-            <Card key={team.id} className="border-none shadow-sm group hover:border-[#1A1A1A]/10 transition-all">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-lg uppercase font-black tracking-tight">{team.name}</CardTitle>
-                <Target size={20} className="text-[#999999] group-hover:text-[#1A1A1A] transition-colors" />
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between pt-4 border-t border-[#1A1A1A]/5 mt-4">
-                  <Badge variant="muted">Available</Badge>
-                  <div className="text-right">
-                    <p className="text-[10px] font-black uppercase text-[#999999]">Value</p>
-                    <p className="font-black text-[#1A1A1A]">100 pts</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+    <PageSection className="py-4 pb-24">
+       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-12">
+        <div className="space-y-1">
+          <h1 className="text-4xl font-semibold tracking-tight text-white">Bounty</h1>
+          <p className="text-sm text-muted-foreground font-medium">Record and manage target code claims.</p>
         </div>
-      )}
+      </div>
 
-      <div className="mt-12 bg-[#F9F9F9] rounded-3xl p-8 border border-[#1A1A1A]/5">
-        <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-[#1A1A1A] mb-4">Implementation Note</h3>
-        <p className="text-sm text-[#666666] leading-relaxed max-w-2xl font-medium">
-          The bounty system is team-based. Each team has one unique high-value bounty. Successful claims award 100 points. Management and scanning tools will be enabled in the next phase.
-        </p>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+        {/* Left: Actions */}
+        <div className="lg:col-span-4 space-y-12">
+          {isAdmin && (
+            <div className="space-y-4">
+               <p className="text-xs font-semibold text-muted-foreground opacity-50 px-1">Setup</p>
+               <BountySetupPanel />
+            </div>
+          )}
+
+          <div className="space-y-4">
+             <p className="text-xs font-semibold text-muted-foreground opacity-50 px-1">Claim bounty</p>
+             <BountyClaimForm teams={teams} />
+          </div>
+
+          <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/5 space-y-3">
+             <div className="flex items-center gap-2 text-accent opacity-80">
+                <Info size={16} />
+                <p className="text-xs font-semibold uppercase tracking-widest">Rules</p>
+             </div>
+             <p className="text-sm text-muted-foreground leading-relaxed font-medium">
+                Teams earn 100 points for each valid target code claimed.
+             </p>
+          </div>
+        </div>
+
+        {/* Right: List */}
+        <div className="lg:col-span-8 space-y-6">
+           <p className="text-xs font-semibold text-muted-foreground opacity-50 px-1">History</p>
+           <BountyList bounties={bounties} isAdmin={isAdmin} />
+        </div>
       </div>
     </PageSection>
   );

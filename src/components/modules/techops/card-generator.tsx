@@ -7,9 +7,16 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { StatusMessage } from '@/components/ui/StatusMessage';
 import { generateTechOpsCards } from '@/lib/actions/techops';
 import { Plus, Settings2 } from 'lucide-react';
+import { isScoresLocked } from '@/lib/actions/settings';
+import { useState, useEffect } from 'react';
 
 export function CardGenerator() {
   const [state, action, isPending] = useActionState(generateTechOpsCards, undefined);
+  const [isLocked, setIsLocked] = useState(false);
+
+  useEffect(() => {
+    isScoresLocked().then(setIsLocked);
+  }, []);
 
   return (
     <Card className="border-none shadow-sm h-full">
@@ -21,6 +28,14 @@ export function CardGenerator() {
         <p className="text-xs text-[#666666]">Admin tool to create physical game cards.</p>
       </CardHeader>
       <CardContent className="pt-4">
+        {isLocked && (
+          <StatusMessage 
+            variant="error"
+            title="Generation Locked"
+            message="Final scores are locked. New card generation is disabled."
+            className="mb-4"
+          />
+        )}
         <form action={action} className="space-y-4">
           {state?.error && (
             <StatusMessage variant="error" title="Error" message={state.error} />
@@ -58,7 +73,7 @@ export function CardGenerator() {
             <Input type="number" name="points" placeholder="Leave blank for default" />
           </div>
 
-          <Button type="submit" className="w-full h-12 font-bold text-xs" disabled={isPending}>
+          <Button type="submit" className="w-full h-12 font-bold text-xs" disabled={isPending || isLocked}>
             <Plus size={16} className="mr-2" />
             {isPending ? 'Generating...' : 'Generate Cards'}
           </Button>

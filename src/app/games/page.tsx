@@ -1,6 +1,5 @@
-import { SectionHeader } from '@/components/ui/SectionHeader';
 import { PageSection } from '@/components/ui/PageSection';
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/Card';
+import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Gamepad2 } from 'lucide-react';
 import Link from 'next/link';
@@ -9,12 +8,14 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { getCurrentUser } from '@/lib/session';
 import { AddGameModal } from '@/components/modules/games/add-game-modal';
 import { EditGameModal } from '@/components/modules/games/edit-game-modal';
+import { isScoresLocked } from '@/lib/actions/settings';
 
 export const dynamic = 'force-dynamic';
 
 export default async function GamesPage() {
   const user = await getCurrentUser();
   const isAdmin = user?.role === 'ADMIN';
+  const isLocked = await isScoresLocked();
 
   const games = await db.game.findMany({
     orderBy: { createdAt: 'desc' },
@@ -26,54 +27,61 @@ export default async function GamesPage() {
   });
 
   return (
-    <PageSection className="py-4">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-        <SectionHeader 
-          title="Amazing Race Games" 
-          description="Manage regular games and record team performance."
-          className="pb-0"
-        />
-        {isAdmin && <AddGameModal />}
+    <PageSection className="py-4 pb-24">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-12">
+        <div className="space-y-1">
+          <h1 className="text-4xl font-semibold tracking-tight text-white">Games</h1>
+          <p className="text-sm text-muted-foreground font-medium">Manage and record scores for all event missions.</p>
+        </div>
+        <div className="flex items-center gap-4">
+          {isAdmin && !isLocked && <AddGameModal />}
+          {isAdmin && isLocked && (
+            <Badge variant="error" className="px-4 py-1.5 font-semibold">Locked</Badge>
+          )}
+        </div>
       </div>
 
       {games.length === 0 ? (
         <EmptyState 
-          title="No games added yet"
-          description="Click the button above to create your first Amazing Race game."
-          icon={<Gamepad2 size={32} />}
+          title="No games active"
+          description="Create your first game to start tracking scores."
+          icon={<Gamepad2 size={40} className="text-muted-foreground/20" />}
         />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {games.map((game) => (
-            <Card key={game.id} className="h-full flex flex-col group">
-              <CardHeader>
-                <div className="flex justify-between items-start">
-                  <Link href={`/games/${game.id}`} className="bg-[#F9F9F9] p-3 rounded-xl text-[#1A1A1A] group-hover:bg-[#1A1A1A] group-hover:text-white transition-colors">
-                    <Gamepad2 size={24} strokeWidth={1.5} />
-                  </Link>
-                  <Badge variant={game.status === 'ACTIVE' ? 'success' : 'muted'}>{game.status}</Badge>
-                </div>
-                <Link href={`/games/${game.id}`} className="block hover:underline">
-                  <CardTitle className="pt-4">{game.name}</CardTitle>
-                </Link>
-              </CardHeader>
-              <CardContent className="flex-1">
-                <div className="flex flex-col gap-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-[#666666]">Max Points</span>
-                    <span className="font-bold">{game.maxPoints}</span>
+            <div key={game.id} className="relative group">
+              <Link href={`/games/${game.id}`} className="absolute inset-0 z-10" />
+              <Card className="h-full flex flex-col transition-all duration-300 group-hover:bg-white/[0.04] p-0 overflow-hidden border-white/5">
+                <div className="p-8 pb-6 flex-1">
+                  <div className="flex justify-between items-start mb-8">
+                    <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center text-accent group-hover:bg-accent group-hover:text-black transition-all shadow-lg">
+                      <Gamepad2 size={24} />
+                    </div>
+                    <Badge variant={game.status === 'ACTIVE' ? 'success' : 'muted'}>
+                      {game.status === 'ACTIVE' ? 'Live' : 'Inactive'}
+                    </Badge>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-[#666666]">Scored Teams</span>
-                    <span className="font-bold">{game._count.gameScores} / 9</span>
+                  
+                  <div className="space-y-1 mb-8">
+                     <h3 className="text-xl font-semibold text-white transition-all">{game.name}</h3>
+                     <p className="text-xs text-muted-foreground font-medium">Mission detail</p>
+                  </div>
+
+                  <div className="bg-black/20 p-4 rounded-xl border border-white/5 space-y-1">
+                    <span className="text-[10px] font-medium text-muted-foreground opacity-60">Recorded scores</span>
+                    <p className="text-base font-semibold text-white">{game._count.gameScores}</p>
                   </div>
                 </div>
-              </CardContent>
-              <CardFooter className="border-t border-[#1A1A1A]/5 mt-4 flex justify-between items-center">
-                <Link href={`/games/${game.id}`} className="text-xs font-bold text-[#1A1A1A] uppercase tracking-wider hover:underline">Open Scoring</Link>
-                {isAdmin && <EditGameModal game={game} />}
-              </CardFooter>
-            </Card>
+
+                <div className="p-6 bg-black/20 border-t border-white/5 flex justify-between items-center relative z-20">
+                  <span className="text-xs font-medium text-accent">Open scoring</span>
+                  {isAdmin && (
+                    <EditGameModal game={game} disabled={isLocked} />
+                  )}
+                </div>
+              </Card>
+            </div>
           ))}
         </div>
       )}

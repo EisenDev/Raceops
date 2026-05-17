@@ -5,7 +5,6 @@ import { usePathname } from 'next/navigation';
 import { 
   LayoutDashboard, 
   Gamepad2, 
-  QrCode, 
   Trophy, 
   History 
 } from 'lucide-react';
@@ -14,44 +13,39 @@ import { cn } from '@/lib/utils';
 const navItems = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { label: 'Games', href: '/games', icon: Gamepad2 },
-  { label: 'TechOps', href: '/techops', icon: QrCode },
-  { label: 'Scores', href: '/scores', icon: Trophy },
-  { label: 'Edits', href: '/edit-requests', icon: History },
+  { label: 'Standings', href: '/scores', icon: Trophy },
+  { label: 'Requests', href: '/edit-requests', icon: History },
 ];
 
 export function MobileBottomNav() {
   const pathname = usePathname();
 
-  // Hide on auth pages
-  if (pathname === '/login') return null;
-
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-[#1A1A1A]/5 bg-white/95 backdrop-blur-xl md:hidden">
-      <div className="flex h-16 items-center justify-around px-2">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-[#0D0D0D]/90 backdrop-blur-xl border-t border-white/5 pb-safe shadow-2xl">
+      <div className="flex items-center justify-around px-2 py-3">
         {navItems.map((item) => {
-          const isActive = pathname.startsWith(item.href);
-          const Icon = item.icon;
-
+          const isActive = pathname === item.href;
           return (
             <Link
               key={item.href}
               href={item.href}
               className={cn(
-                'flex flex-col items-center justify-center space-y-1 px-3 py-1 transition-all active:scale-90',
-                isActive ? 'text-[#1A1A1A]' : 'text-[#999999]'
+                "flex flex-col items-center gap-1.5 px-3 py-1 transition-all duration-300",
+                isActive ? "text-accent scale-110" : "text-muted-foreground opacity-70 hover:opacity-100"
               )}
             >
-              <div className={cn(
-                'p-1 rounded-lg transition-colors',
-                isActive ? 'bg-[#1A1A1A]/5' : ''
-              )}>
-                <Icon size={20} strokeWidth={isActive ? 2.5 : 2} />
-              </div>
+              <item.icon 
+                size={20} 
+                className={cn(
+                  "transition-all",
+                  isActive ? "text-accent drop-shadow-gold" : ""
+                )} 
+              />
               <span className={cn(
-                "text-[9px] font-black uppercase tracking-widest transition-opacity",
+                "text-[9px] font-black uppercase tracking-widest leading-none",
                 isActive ? "opacity-100" : "opacity-0"
               )}>
-                {item.label}
+               {item.label}
               </span>
             </Link>
           );

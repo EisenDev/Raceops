@@ -48,14 +48,14 @@ function AddGameModalContent({ onClose }: { onClose: () => void }) {
       <Card className="w-full max-w-md shadow-2xl relative text-left">
         <button 
           onClick={onClose}
-          className="absolute top-4 right-4 text-[#999999] hover:text-[#1A1A1A] transition-colors"
+          className="absolute top-4 right-4 text-muted-foreground hover:text-white transition-colors"
         >
           <X size={20} />
         </button>
 
         <CardHeader>
           <CardTitle>Add New Game</CardTitle>
-          <p className="text-sm text-[#666666]">Define a standard Amazing Race game.</p>
+          <p className="text-sm text-muted-foreground opacity-60">Define a standard game mission.</p>
         </CardHeader>
 
         <CardContent>
@@ -69,36 +69,31 @@ function AddGameModalContent({ onClose }: { onClose: () => void }) {
             )}
 
             <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-[#1A1A1A]">Game Name</label>
+              <label className="text-xs font-semibold text-white">Game name</label>
               <Input name="name" placeholder="e.g. Speed Logic" required autoFocus />
             </div>
 
             <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-[#1A1A1A]">Max Points</label>
-              <Input type="number" name="maxPoints" defaultValue={100} required />
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-[#1A1A1A]">Mechanics (Optional)</label>
+              <label className="text-xs font-semibold text-white">Game instructions</label>
               <textarea 
                 name="mechanics" 
                 rows={4}
-                className="flex w-full rounded-lg border border-[#1A1A1A]/10 bg-white px-4 py-3 text-sm transition-colors placeholder:text-[#666666] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1A1A1A]/20 focus-visible:border-[#1A1A1A]"
+                className="flex w-full rounded-lg border border-white/10 bg-white px-4 py-3 text-sm transition-colors text-black placeholder:text-neutral-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/20 focus-visible:border-accent"
                 placeholder="How to play this game..."
               />
             </div>
 
-            <div className="flex gap-3 pt-4 border-t border-[#1A1A1A]/5">
+            <div className="flex gap-3 pt-6 border-t border-white/5">
               <Button 
                 type="button" 
                 variant="secondary" 
-                className="flex-1 font-bold text-xs" 
+                className="flex-1 text-xs" 
                 onClick={onClose}
                 disabled={isPending}
               >
                 Cancel
               </Button>
-              <Button type="submit" className="flex-1 font-bold text-xs" disabled={isPending}>
+              <Button type="submit" className="flex-1 text-xs" disabled={isPending}>
                 {isPending ? 'Saving...' : 'Create Game'}
               </Button>
             </div>

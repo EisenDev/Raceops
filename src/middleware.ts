@@ -22,10 +22,11 @@ export async function middleware(request: NextRequest) {
   const protectedRoutes = [
     '/dashboard', 
     '/games', 
-    '/techops', 
-    '/bounty', 
     '/teams', 
     '/scores', 
+    '/techops',
+    '/code-runner',
+    '/bounty',
     '/edit-requests', 
     '/users', 
     '/settings'
@@ -52,10 +53,11 @@ export const config = {
   matcher: [
     '/dashboard/:path*',
     '/games/:path*',
-    '/techops/:path*',
-    '/bounty/:path*',
     '/teams/:path*',
     '/scores/:path*',
+    '/techops/:path*',
+    '/code-runner/:path*',
+    '/bounty/:path*',
     '/edit-requests/:path*',
     '/users/:path*',
     '/settings/:path*',

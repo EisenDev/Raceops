@@ -26,6 +26,11 @@
 - **Flow:** Facilitator Request -> Admin Review -> approved/declined.
 - **Audit:** Every approved request updates the score and creates a permanent log.
 
+### 4. Station 11 Code Runner
+- **Validation Engine**: Controlled pattern-matching engine for code challenges.
+- **Isolation**: Standalone database models and logic, disconnected from the primary scoring aggregator to prevent accidental point manipulation.
+- **Status Codes**: Uses standard HTTP-style status codes (200, 403, 404, 500) as game feedback.
+
 ## Suggested Folder Structure
 ```text
 /

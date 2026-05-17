@@ -1,56 +1,28 @@
-# RaceOps
+# RaceOps (Internal Command Center)
 
-Official Scoring and Facilitation System for the **Infosoft Amazing Race 2026**.
+Precision scoring and facilitation system for **Infosoft Amazing Race 2026**.
 
-## Overview
-**RaceOps** is a premium, minimalist internal tool designed to streamline the management of team-based company events. It provides facilitators with high-efficiency data entry tools and offers administrators (CEO/Controller) total oversight through an auditable correction workflow.
+## Visual Direction
+RaceOps uses a **Dark Premium** interface designed for high-signal operations.
+- **Theme:** Atelier Dark (Charcoal/Black with Gold/Bronze accents).
+- **Background:** `#0A0A0A`
+- **Cards:** `#141414` (Subtle borders and soft gold glows).
+- **Typography:** Refined hierarchy using **Plus Jakarta Sans** and **Geist Mono**.
 
-## Key Features
-- **Flexible Scoring**: Support for both overall team totals and individual member breakdown contributions.
-- **TechOps Cache Run**: A themed scavenger hunt module with automated card generation and QR/Code scanning.
-- **Edit Request Workflow**: A secure, auditable process for score corrections that requires administrative approval.
-- **Real-Time Leaderboard**: Live-updating rankings for both internal management and public guest viewing.
-- **Role-Based Access**: Specialized interfaces for Admins (Full Control) and Facilitators (Data Entry).
+## Architecture
+- **Framework:** Next.js (App Router)
+- **Database:** Prisma + PostgreSQL
+- **UI:** Tailwind CSS (Custom Design System)
+- **Auth:** iron-session
 
-## Tech Stack
-- **Framework**: Next.js 16 (App Router)
-- **Language**: TypeScript
-- **Database**: PostgreSQL with Prisma ORM
-- **Authentication**: iron-session
-- **Styling**: Tailwind CSS (Atelier-inspired minimalist design)
+## Primary Modules
+1. **Dashboard:** Command center overview with real-time telemetry.
+2. **Mission Control (Games):** Multi-mode scoring for team challenges.
+3. **Personnel Registry (Teams):** Unit and member management.
+4. **Audit Workflow (Edit Requests):** Secure facilitator correction queue.
+5. **TechOps Run:** Strategic cache retrieval and point injection.
+6. **Kernel Debugger (Code Runner):** Technical validation console for Station 11.
+7. **Public Scoreboard:** Presentation-ready broadcast view for event projectors.
 
-## Getting Started
-
-### Prerequisites
-- Node.js 18+
-- PostgreSQL instance
-
-### Installation
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/EisenDev/Raceops.git
-   cd Raceops
-   ```
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-3. Set up your environment variables:
-   Copy `.env.example` to `.env` and fill in your database credentials.
-4. Initialize the database:
-   ```bash
-   npx prisma db push
-   npx prisma db seed
-   ```
-5. Run the development server:
-   ```bash
-   npm run dev
-   ```
-
-## Roles & Access
-- **Admin**: `admin@admin.com` / `adminpass` (Default seeded account)
-- **Facilitator**: Created by Admin via the "Users / Facilitators" dashboard.
-- **Guest**: Public, read-only access to `/scoreboard`.
-
-## License
-Proprietary. All rights reserved.
+## Deployment
+See `docs/DEPLOYMENT_GUIDE.md` for production setup.

@@ -4,10 +4,12 @@ import { z } from 'zod';
 import db from '@/lib/db';
 import { getCurrentUser } from '@/lib/session';
 import { revalidatePath } from 'next/cache';
+import { isScoresLocked } from './settings';
+import { parseDurationToSeconds } from '@/lib/utils';
 
 const gameSchema = z.object({
   name: z.string().min(1, 'Game name is required'),
-  maxPoints: z.number().int().positive('Max points must be greater than 0'),
+  maxPoints: z.number().int().optional(),
   mechanics: z.string().optional(),
   status: z.enum(['DRAFT', 'ACTIVE', 'COMPLETED']).optional(),
 });
@@ -19,10 +21,9 @@ export async function createGame(prevState: unknown, formData: FormData) {
   }
 
   const name = formData.get('name') as string;
-  const maxPoints = parseInt(formData.get('maxPoints') as string);
   const mechanics = formData.get('mechanics') as string;
 
-  const result = gameSchema.safeParse({ name, maxPoints, mechanics });
+  const result = gameSchema.safeParse({ name, mechanics, maxPoints: 0 });
 
   if (!result.success) {
     return { error: result.error.issues[0].message };
@@ -32,7 +33,7 @@ export async function createGame(prevState: unknown, formData: FormData) {
     const game = await db.game.create({
       data: {
         name: result.data.name,
-        maxPoints: result.data.maxPoints,
+        maxPoints: 0,
         mechanics: result.data.mechanics,
         status: 'DRAFT',
       },
@@ -64,11 +65,10 @@ export async function updateGame(gameId: string, prevState: unknown, formData: F
   }
 
   const name = formData.get('name') as string;
-  const maxPoints = parseInt(formData.get('maxPoints') as string);
   const mechanics = formData.get('mechanics') as string;
   const status = formData.get('status') as 'DRAFT' | 'ACTIVE' | 'COMPLETED' | null;
 
-  const result = gameSchema.safeParse({ name, maxPoints, mechanics, status });
+  const result = gameSchema.safeParse({ name, mechanics, status });
 
   if (!result.success) {
     return { error: result.error.issues[0].message };
@@ -103,6 +103,10 @@ export async function deleteGame(gameId: string) {
   const user = await getCurrentUser();
   if (!user || user.role !== 'ADMIN') {
     return { error: 'Unauthorized.' };
+  }
+
+  if (await isScoresLocked()) {
+    return { error: 'Scores are locked. Games cannot be deleted.' };
   }
 
   try {

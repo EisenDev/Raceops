@@ -6,9 +6,13 @@ import { Input } from '@/components/ui/Input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { StatusMessage } from '@/components/ui/StatusMessage';
 import { createTeam } from '@/lib/actions/teams';
-import { X, Plus, Trash2 } from 'lucide-react';
+import { X, Plus, Trash2, User } from 'lucide-react';
 
-export function AddTeamModal() {
+interface AddTeamModalProps {
+  facilitators: { id: string; name: string }[];
+}
+
+export function AddTeamModal({ facilitators }: AddTeamModalProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [modalKey, setModalKey] = useState(0);
 
@@ -29,12 +33,19 @@ export function AddTeamModal() {
   return (
     <AddTeamModalContent 
       key={modalKey}
+      facilitators={facilitators}
       onClose={() => setIsOpen(false)}
     />
   );
 }
 
-function AddTeamModalContent({ onClose }: { onClose: () => void }) {
+function AddTeamModalContent({ 
+  onClose, 
+  facilitators 
+}: { 
+  onClose: () => void; 
+  facilitators: { id: string; name: string }[] 
+}) {
   const [teamColor, setTeamColor] = useState('#1A1A1A');
   const [members, setMembers] = useState(['']);
   const [state, action, isPending] = useActionState(createTeam, undefined);
@@ -76,16 +87,30 @@ function AddTeamModalContent({ onClose }: { onClose: () => void }) {
         <CardContent>
           <form action={action} className="space-y-6">
             {state?.error && (
-              <StatusMessage 
-                variant="error"
-                title="Validation Error"
-                message={state.error}
-              />
+              <StatusMessage variant="error" title="Validation Error" message={state.error} />
             )}
 
-            <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-[#1A1A1A]">Team Name</label>
-              <Input name="name" placeholder="e.g. Yellow" required autoFocus />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-[#1A1A1A]">Team Name</label>
+                <Input name="name" placeholder="e.g. Yellow" required autoFocus />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-[#1A1A1A]">Assigned Facilitator</label>
+                <div className="relative">
+                  <select 
+                    name="assignedFacilitatorId" 
+                    className="flex h-12 w-full rounded-lg border border-[#1A1A1A]/10 bg-white pl-10 pr-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-[#1A1A1A]/20 transition-all appearance-none"
+                  >
+                    <option value="">No Facilitator</option>
+                    {facilitators.map(f => (
+                      <option key={f.id} value={f.id}>{f.name}</option>
+                    ))}
+                  </select>
+                  <User size={16} className="absolute left-3 top-4 text-[#999999]" />
+                </div>
+              </div>
             </div>
 
             <div className="space-y-2">

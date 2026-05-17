@@ -20,11 +20,11 @@ export function AppShell({ children, user }: AppShellProps) {
   const isPublicPage = pathname === '/login' || pathname === '/' || pathname === '/scoreboard';
 
   if (isPublicPage) {
-    return <main className="min-h-screen bg-white">{children}</main>;
+    return <main className="min-h-screen bg-background">{children}</main>;
   }
 
   return (
-    <div className="flex min-h-screen bg-white">
+    <div className="flex min-h-screen bg-background">
       {/* Desktop Navigation */}
       <DesktopSidebar user={user} />
 

@@ -5,6 +5,8 @@ import db from '@/lib/db';
 import { getCurrentUser } from '@/lib/session';
 import { revalidatePath } from 'next/cache';
 import { EditRequestModule, Prisma } from '@prisma/client';
+import { isScoresLocked } from './settings';
+import { updateTeamAggregateScore } from './game-scores';
 
 const editRequestSchema = z.object({
   requestModule: z.nativeEnum(EditRequestModule),
@@ -49,6 +51,14 @@ export async function createEditRequest(prevState: unknown, formData: FormData) 
   }
 
   try {
+    const team = await db.team.findUnique({ where: { id: result.data.teamId } });
+    if (!team) return { error: 'Team not found.' };
+
+    // Assigned Facilitator Rule
+    if (user.role !== 'ADMIN' && team.assignedFacilitatorId !== user.id) {
+      return { error: 'Unauthorized. You are not the assigned facilitator for this team.' };
+    }
+
     const editRequest = await db.editRequest.create({
       data: {
         module: result.data.requestModule,
@@ -83,6 +93,10 @@ export async function createEditRequest(prevState: unknown, formData: FormData) 
 export async function approveEditRequest(id: string, adminRemarks?: string) {
   const user = await getCurrentUser();
   if (!user || user.role !== 'ADMIN') return { error: 'Unauthorized.' };
+
+  if (await isScoresLocked()) {
+    return { error: 'Scores are locked. Unlock scores from Settings to approve requests.' };
+  }
 
   try {
     const request = await db.editRequest.findUnique({
@@ -183,24 +197,10 @@ export async function declineEditRequest(id: string, adminRemarks?: string) {
       },
     });
 
-    revalidatePath('/edit-requests');
+    revalidatePath('/dashboard');
     return { success: true };
-  } catch (error) {
+    } catch (error) {
     console.error('Decline edit request error:', error);
     return { error: 'Failed to decline request.' };
-  }
-}
-
-async function updateTeamAggregateScore(teamId: string, tx: Prisma.TransactionClient) {
-  const scores = await tx.gameScore.findMany({
-    where: { teamId },
-    select: { totalPoints: true }
-  });
-
-  const total = scores.reduce((sum: number, s: { totalPoints: number }) => sum + s.totalPoints, 0);
-
-  await tx.team.update({
-    where: { id: teamId },
-    data: { totalScore: total }
-  });
-}
+    }
+    }

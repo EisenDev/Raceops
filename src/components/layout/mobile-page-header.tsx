@@ -6,11 +6,9 @@ export function MobilePageHeader() {
   const pathname = usePathname();
 
   const getPageTitle = (path: string) => {
-    if (path === '/') return 'TechOps';
+    if (path === '/') return 'RaceOps';
     if (path.startsWith('/dashboard')) return 'Dashboard';
     if (path.startsWith('/games')) return 'Games';
-    if (path.startsWith('/techops')) return 'TechOps Run';
-    if (path.startsWith('/bounty')) return 'Bounty';
     if (path.startsWith('/teams')) return 'Teams';
     if (path.startsWith('/scores')) return 'Scores';
     if (path.startsWith('/scoreboard')) return 'Scoreboard';
@@ -18,7 +16,7 @@ export function MobilePageHeader() {
     if (path.startsWith('/users')) return 'Users';
     if (path.startsWith('/settings')) return 'Settings';
     if (path.startsWith('/login')) return 'Login';
-    return 'TechOps';
+    return 'RaceOps';
   };
 
   return (

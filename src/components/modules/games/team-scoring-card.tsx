@@ -6,26 +6,39 @@ import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { StatusMessage } from '@/components/ui/StatusMessage';
-import { ChevronDown, Save, Users, User } from 'lucide-react';
+import { ChevronDown, Save, Users, User, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { saveTeamScore, saveMemberBreakdownScore } from '@/lib/actions/game-scores';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { RequestEditModal } from './request-edit-modal';
+import { isScoresLocked } from '@/lib/actions/settings';
+import { formatSeconds, secondsToTimeParts, timePartsToSeconds } from '@/lib/utils';
 
 interface TeamScoringCardProps {
   game: { id: string; name: string; maxPoints: number };
-  team: { id: string; name: string; color: string | null; members: { id: string; name: string }[] };
-  existingScore?: { id: string; totalPoints: number; scoringMode: 'TEAM_TOTAL' | 'MEMBER_BREAKDOWN'; memberScores: { teamMemberId: string; points: number }[] };
+  team: { id: string; name: string; color: string | null; assignedFacilitatorId?: string | null; members: { id: string; name: string }[] };
+  existingScore?: { id: string; totalPoints: number; scoringMode: string; memberScores: { teamMemberId: string; points: number }[] };
+  pendingRequest?: { id: string; status: string; reason: string };
   isAdmin: boolean;
+  currentUser: { id: string; role: 'ADMIN' | 'FACILITATOR' };
 }
 
-export function TeamScoringCard({ game, team, existingScore, isAdmin }: TeamScoringCardProps) {
+export function TeamScoringCard({ game, team, existingScore, pendingRequest, isAdmin, currentUser }: TeamScoringCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isLocked, setIsLocked] = useState(false);
+  const initialTeamTime = secondsToTimeParts(existingScore?.totalPoints ?? 0);
+  const [teamHours, setTeamHours] = useState(initialTeamTime.hours);
+  const [teamMinutes, setTeamMinutes] = useState(initialTeamTime.minutes);
+  const [teamSeconds, setTeamSeconds] = useState(initialTeamTime.seconds);
+
+  useEffect(() => {
+    isScoresLocked().then(setIsLocked);
+  }, []);
+
   const [scoringMode, setScoringMode] = useState<'TEAM_TOTAL' | 'MEMBER_BREAKDOWN'>(
     (existingScore?.scoringMode as 'TEAM_TOTAL' | 'MEMBER_BREAKDOWN') || 'TEAM_TOTAL'
   );
   
-  // Local state for member points to allow live calculation
   const [memberPoints, setMemberPoints] = useState<Record<string, number>>(() => {
     const points: Record<string, number> = {};
     existingScore?.memberScores.forEach(ms => {
@@ -35,17 +48,37 @@ export function TeamScoringCard({ game, team, existingScore, isAdmin }: TeamScor
   });
 
   const currentTotal = useMemo(() => {
-    if (scoringMode === 'TEAM_TOTAL') return existingScore?.totalPoints || 0;
+    if (scoringMode === 'TEAM_TOTAL') return timePartsToSeconds(teamHours, teamMinutes, teamSeconds) ?? 0;
     return Object.values(memberPoints).reduce((sum, p) => sum + p, 0);
-  }, [scoringMode, memberPoints, existingScore]);
+  }, [scoringMode, memberPoints, teamHours, teamMinutes, teamSeconds]);
 
   const [teamState, teamAction, teamPending] = useActionState(saveTeamScore, undefined);
   const [isBreakdownPending, setIsBreakdownPending] = useState(false);
   const [breakdownError, setBreakdownError] = useState<string | null>(null);
 
-  const handleMemberPointsChange = (memberId: string, value: string) => {
-    const points = parseInt(value) || 0;
-    setMemberPoints(prev => ({ ...prev, [memberId]: Math.max(0, points) }));
+  const handleTimePartChange = (
+    value: string,
+    setter: (next: string) => void,
+    maxLength: number,
+  ) => {
+    if (!/^\d*$/.test(value)) return;
+    setter(value.slice(0, maxLength));
+  };
+
+  const handleMemberPointsChange = (memberId: string, part: 'hours' | 'minutes' | 'seconds', value: string) => {
+    const existing = secondsToTimeParts(memberPoints[memberId] ?? 0);
+    const nextHours = part === 'hours' ? value : existing.hours;
+    const nextMinutes = part === 'minutes' ? value : existing.minutes;
+    const nextSeconds = part === 'seconds' ? value : existing.seconds;
+
+    if (!/^\d*$/.test(value)) return;
+    if ((part === 'minutes' || part === 'seconds') && value.length > 2) return;
+    if (part === 'hours' && value.length > 3) return;
+
+    const points = timePartsToSeconds(nextHours, nextMinutes, nextSeconds);
+    if (points === null) return;
+
+    setMemberPoints(prev => ({ ...prev, [memberId]: points }));
   };
 
   const onSaveBreakdown = async () => {
@@ -74,157 +107,238 @@ export function TeamScoringCard({ game, team, existingScore, isAdmin }: TeamScor
     }
   }, [teamState?.success]);
 
-  const isLockedForUser = existingScore && !isAdmin;
+  const isAssigned = isAdmin || team.assignedFacilitatorId === currentUser.id;
+  const isLockedBySubmission = existingScore && !isAdmin;
 
   return (
-    <Card className="overflow-hidden border-none shadow-sm">
+    <Card className="overflow-hidden border-white/5 bg-white/[0.02] shadow-sm rounded-xl">
       <div 
         className={cn(
-          "flex items-center justify-between p-5 bg-white cursor-pointer hover:bg-[#F9F9F9] transition-colors",
-          isExpanded && "border-b border-[#1A1A1A]/5"
+          "flex items-center justify-between p-6 cursor-pointer transition-all duration-200",
+          isExpanded ? "bg-white/[0.05] border-b border-white/5" : "hover:bg-white/[0.03]"
         )}
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div className="flex items-center gap-4">
-          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: team.color || '#1A1A1A' }} />
-          <span className="font-bold uppercase tracking-tight">{team.name}</span>
-          {existingScore && (
-            <Badge variant="success" className="text-[8px]">Submitted</Badge>
-          )}
+          <div 
+            className="w-1 h-6 rounded-full" 
+            style={{ backgroundColor: team.color || '#C5A059' }} 
+          />
+          <div className="flex flex-col">
+             <span className="text-lg font-medium text-white/90">{team.name}</span>
+             <div className="flex items-center gap-2">
+                {existingScore && (
+                  <Badge variant="success" className="text-[10px] px-1.5 py-0">Completed</Badge>
+                )}
+                {pendingRequest && (
+                  <Badge variant="warning" className="text-[10px] px-1.5 py-0">Review pending</Badge>
+                )}
+             </div>
+          </div>
         </div>
-        <div className="flex items-center gap-4">
-          <span className={cn(
-            "text-xl font-black",
-            currentTotal > game.maxPoints ? "text-red-500" : "text-[#1A1A1A]"
-          )}>
-            {currentTotal} / {game.maxPoints}
-          </span>
-          <ChevronDown size={18} className={cn("text-[#999999] transition-transform", isExpanded && "rotate-180")} />
+        <div className="flex items-center gap-6">
+          <div className="text-right">
+            <p className={cn(
+              "text-xl font-semibold tabular-nums tracking-tight transition-colors",
+              isExpanded ? "text-accent" : "text-white/70"
+            )}>
+              {formatSeconds(currentTotal)}
+            </p>
+          </div>
+          <ChevronDown size={18} className={cn("text-muted-foreground transition-transform duration-300", isExpanded && "rotate-180")} />
         </div>
       </div>
 
       {isExpanded && (
-        <div className="p-6 bg-[#F9F9F9]/30 space-y-6">
-          {isLockedForUser ? (
-            <div className="space-y-4">
+        <div className="p-8 bg-black/20 space-y-8 animate-in slide-in-from-top-2 duration-300">
+          {isLocked && (
+            <StatusMessage 
+              variant="error"
+              title="Scores locked"
+              message="Final results are now official. Changes require administrator access."
+            />
+          )}
+
+          {!isAssigned && !isLocked && (
+            <StatusMessage 
+              variant="info"
+              title="Read only"
+              message="You are not assigned to this team. Only the assigned staff can record scores."
+            />
+          )}
+
+          {isAssigned && isLockedBySubmission && !isLocked ? (
+            <div className="space-y-6">
               <StatusMessage 
                 variant="warning"
-                title="Score Submitted"
-                message="This score has already been recorded. Please request an edit if a correction is needed."
+                title="Result recorded"
+                message="This score has been saved. Please request an edit if a correction is needed."
               />
-              <div className="flex justify-end">
+              <div className="flex justify-end pt-4 border-t border-white/5">
                 <RequestEditModal 
                   game={game} 
                   team={team} 
-                  existingScore={existingScore as { id: string; totalPoints: number; scoringMode: 'TEAM_TOTAL' | 'MEMBER_BREAKDOWN'; memberScores: { teamMemberId: string; points: number }[] }} 
+                  existingScore={existingScore as { id: string; totalPoints: number; scoringMode: string; memberScores: { teamMemberId: string; points: number }[] }} 
+                  pendingRequest={pendingRequest}
                 />
               </div>
             </div>
-          ) : (
-            <>
-              <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-                <div className="space-y-1">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-[#999999]">Scoring Method</p>
-                  <div className="flex bg-white rounded-lg p-1 border border-[#1A1A1A]/5">
+          ) : isAssigned && !isLocked ? (
+            <div className="space-y-8">
+              <div className="flex flex-col sm:flex-row gap-6 items-start sm:items-end justify-between">
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-muted-foreground opacity-60">Scoring method</p>
+                  <div className="flex bg-white/[0.03] rounded-lg p-1 border border-white/5">
                     <button
                       onClick={() => setScoringMode('TEAM_TOTAL')}
-                      className={cn(
-                        "px-3 py-1.5 text-[10px] font-black uppercase tracking-wider rounded-md transition-all",
-                        scoringMode === 'TEAM_TOTAL' ? "bg-[#1A1A1A] text-white shadow-md" : "text-[#666666] hover:bg-[#F9F9F9]"
+                     className={cn(
+                        "px-4 py-1.5 text-xs font-medium rounded-md transition-all",
+                        scoringMode === 'TEAM_TOTAL' ? "bg-accent text-black" : "text-muted-foreground hover:text-white"
                       )}
                     >
-                      Team Total
+                      Team total
                     </button>
                     <button
                       onClick={() => setScoringMode('MEMBER_BREAKDOWN')}
                       className={cn(
-                        "px-3 py-1.5 text-[10px] font-black uppercase tracking-wider rounded-md transition-all",
-                        scoringMode === 'MEMBER_BREAKDOWN' ? "bg-[#1A1A1A] text-white shadow-md" : "text-[#666666] hover:bg-[#F9F9F9]"
+                        "px-4 py-1.5 text-xs font-medium rounded-md transition-all",
+                        scoringMode === 'MEMBER_BREAKDOWN' ? "bg-accent text-black" : "text-muted-foreground hover:text-white"
                       )}
                     >
-                      Member Breakdown
+                      Member breakdown
                     </button>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-[#999999]">Team Total</p>
-                  <p className="text-2xl font-black">{currentTotal} pts</p>
+                <div className="text-right px-4 py-2 rounded-xl bg-white/[0.02] border border-white/5">
+                  <p className="text-xs font-medium text-muted-foreground opacity-50 mb-0.5">Total time</p>
+                  <p className="text-2xl font-semibold tabular-nums tracking-tight text-white">{formatSeconds(currentTotal)}</p>
                 </div>
               </div>
 
               {scoringMode === 'TEAM_TOTAL' ? (
-                <form action={teamAction} className="space-y-4">
+                <form action={teamAction} className="space-y-6">
                   <input type="hidden" name="gameId" value={game.id} />
                   <input type="hidden" name="teamId" value={team.id} />
                   
                   {teamState?.error && (
-                    <StatusMessage variant="error" title="Error" message={teamState.error} />
+                    <StatusMessage variant="error" title="Input error" message={teamState.error} />
                   )}
 
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-[#1A1A1A]">Team Total Points</label>
-                    <Input 
-                      name="totalPoints" 
-                      type="number" 
-                      defaultValue={existingScore?.totalPoints || 0}
-                      className="h-14 text-2xl font-black text-center"
-                      required
-                    />
+                  <div className="space-y-3">
+                    <label className="text-xs font-medium text-muted-foreground">Enter team time (HH:MM:SS)</label>
+                    <input type="hidden" name="totalPoints" value={`${teamHours || '00'}:${teamMinutes || '00'}:${teamSeconds || '00'}`} />
+                    <div className="grid grid-cols-3 gap-4 max-w-sm">
+                      <div className="space-y-1">
+                        <Input
+                          type="text"
+                          inputMode="numeric"
+                          value={teamHours}
+                          onChange={(e) => handleTimePartChange(e.target.value, setTeamHours, 3)}
+                          placeholder="00"
+                          className="h-14 text-2xl font-medium text-center bg-black border-white/10 focus:border-accent/40 rounded-xl"
+                          required
+                        />
+                        <p className="text-center text-[10px] text-muted-foreground/40 font-medium">Hours</p>
+                      </div>
+                      <div className="space-y-1">
+                        <Input
+                          type="text"
+                          inputMode="numeric"
+                          value={teamMinutes}
+                          onChange={(e) => handleTimePartChange(e.target.value, setTeamMinutes, 2)}
+                          placeholder="00"
+                          className="h-14 text-2xl font-medium text-center bg-black border-white/10 focus:border-accent/40 rounded-xl"
+                          required
+                        />
+                        <p className="text-center text-[10px] text-muted-foreground/40 font-medium">Minutes</p>
+                      </div>
+                      <div className="space-y-1">
+                        <Input
+                          type="text"
+                          inputMode="numeric"
+                          value={teamSeconds}
+                          onChange={(e) => handleTimePartChange(e.target.value, setTeamSeconds, 2)}
+                          placeholder="00"
+                          className="h-14 text-2xl font-medium text-center bg-black border-white/10 focus:border-accent/40 rounded-xl"
+                          required
+                        />
+                        <p className="text-center text-[10px] text-muted-foreground/40 font-medium">Seconds</p>
+                      </div>
+                    </div>
                   </div>
                   
-                  <div className="flex justify-end gap-3 pt-4 border-t border-[#1A1A1A]/5">
-                    <Button type="submit" disabled={teamPending} className="font-bold text-xs">
-                      <Save size={14} className="mr-2" />
-                      {existingScore ? 'Update Score' : 'Save Team Score'}
+                  <div className="flex justify-end pt-4 border-t border-white/5">
+                    <Button type="submit" disabled={teamPending || isLocked} className="h-12 px-8 text-xs">
+                      <Save size={16} className="mr-2" />
+                      Save record
                     </Button>
                   </div>
                 </form>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-6">
                   {breakdownError && (
-                    <StatusMessage variant="error" title="Error" message={breakdownError} />
+                    <StatusMessage variant="error" title="Input error" message={breakdownError} />
                   )}
 
                   {team.members.length === 0 ? (
                     <EmptyState 
                       title="No members"
-                      description="Add members to this team first or use Team Total mode."
-                      className="py-4 bg-white rounded-xl"
-                      icon={<Users size={20} />}
+                      description="Please register members for this team first."
+                      className="py-10 bg-white/[0.01]"
                     />
                   ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {team.members.map((member) => (
-                        <div key={member.id} className="flex items-center justify-between gap-4 bg-white p-3 rounded-xl border border-[#1A1A1A]/5">
-                          <div className="flex items-center gap-2 truncate">
-                             <User size={14} className="text-[#999999]" />
-                             <span className="text-sm font-bold truncate">{member.name}</span>
+                        <Card variant="ivory" key={member.id} className="p-5 space-y-4 border-none shadow-sm">
+                          <div className="flex items-center gap-2">
+                             <User size={14} className="opacity-40" />
+                             <span className="text-sm font-semibold truncate">{member.name}</span>
                           </div>
-                          <Input 
-                            type="number" 
-                            value={memberPoints[member.id] || 0}
-                            onChange={(e) => handleMemberPointsChange(member.id, e.target.value)}
-                            className="w-20 text-center h-10 font-black"
-                          />
-                        </div>
+                          <div className="grid grid-cols-3 gap-2">
+                            <Input
+                              type="text"
+                              inputMode="numeric"
+                              value={secondsToTimeParts(memberPoints[member.id] ?? 0).hours}
+                              placeholder="00"
+                              onChange={(e) => handleMemberPointsChange(member.id, 'hours', e.target.value)}
+                              className="text-center h-10 bg-white/40 border-black/5 text-base font-medium rounded-lg"
+                            />
+                            <Input
+                              type="text"
+                              inputMode="numeric"
+                              value={secondsToTimeParts(memberPoints[member.id] ?? 0).minutes}
+                              placeholder="00"
+                              onChange={(e) => handleMemberPointsChange(member.id, 'minutes', e.target.value)}
+                              className="text-center h-10 bg-white/40 border-black/5 text-base font-medium rounded-lg"
+                            />
+                            <Input
+                              type="text"
+                              inputMode="numeric"
+                              value={secondsToTimeParts(memberPoints[member.id] ?? 0).seconds}
+                              placeholder="00"
+                              onChange={(e) => handleMemberPointsChange(member.id, 'seconds', e.target.value)}
+                              className="text-center h-10 bg-white/40 border-black/5 text-base font-medium rounded-lg"
+                            />
+                          </div>
+                        </Card>
                       ))}
                     </div>
                   )}
                   
-                  <div className="flex justify-end gap-3 pt-4 border-t border-[#1A1A1A]/5">
+                  <div className="flex justify-end pt-4 border-t border-white/5">
                     <Button 
                       onClick={onSaveBreakdown} 
-                      disabled={isBreakdownPending || team.members.length === 0} 
-                      className="font-bold text-xs"
+                      disabled={isBreakdownPending || team.members.length === 0 || isLocked} 
+                      className="h-12 px-8 text-xs"
                     >
-                      <Save size={14} className="mr-2" />
-                      {existingScore ? 'Update Breakdown' : 'Save Breakdown'}
+                      <Save size={16} className="mr-2" />
+                      Save breakdown
                     </Button>
                   </div>
                 </div>
               )}
-            </>
-          )}
+            </div>
+          ) : null}
         </div>
       )}
     </Card>

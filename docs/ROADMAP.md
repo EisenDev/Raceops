@@ -31,3 +31,7 @@
 ## Phase 7: Event Support & Cleanup
 - **Goal:** CEO Handover and final polish.
 - **Deliverables:** User management, password reset for CEO, final testing.
+
+## Phase 8: Station 11 Utility
+- **Goal:** Support the coding challenge station.
+- **Deliverables:** Isolated Code Runner tool, language track validation, server-style response UI.

@@ -10,31 +10,31 @@ interface StatusMessageProps {
 
 export function StatusMessage({ title, message, variant = 'info', className }: StatusMessageProps) {
   const icons = {
-    success: <CheckCircle2 className="h-5 w-5 text-[#2E7D32]" />,
-    warning: <AlertCircle className="h-5 w-5 text-[#EF6C00]" />,
-    error: <XCircle className="h-5 w-5 text-[#C62828]" />,
-    info: <Info className="h-5 w-5 text-[#1A1A1A]" />,
+    success: <CheckCircle2 size={18} className="text-emerald-500" />,
+    warning: <AlertCircle size={18} className="text-amber-500" />,
+    error: <XCircle size={18} className="text-red-500" />,
+    info: <Info size={18} className="text-accent" />,
   };
 
   const variants = {
-    success: 'bg-[#E8F5E9]/50 border-[#E8F5E9]',
-    warning: 'bg-[#FFF3E0]/50 border-[#FFF3E0]',
-    error: 'bg-[#FFEBEE]/50 border-[#FFEBEE]',
-    info: 'bg-[#F9F9F9] border-[#1A1A1A]/5',
+    success: 'bg-emerald-500/5 border-emerald-500/10 text-emerald-200',
+    warning: 'bg-amber-500/5 border-amber-500/10 text-amber-200',
+    error: 'bg-red-500/5 border-red-500/10 text-red-200',
+    info: 'bg-white/5 border-white/10 text-white/80',
   };
 
   return (
     <div
       className={cn(
-        'flex items-start gap-4 rounded-xl border p-4 transition-all',
+        'flex items-start gap-3 rounded-2xl border p-5 transition-all animate-in fade-in slide-in-from-top-2 duration-300',
         variants[variant],
         className
       )}
     >
       <div className="shrink-0 pt-0.5">{icons[variant]}</div>
       <div className="space-y-1">
-        <h4 className="text-sm font-bold text-[#1A1A1A]">{title}</h4>
-        <p className="text-sm text-[#666666] leading-relaxed">{message}</p>
+        <h4 className="text-xs font-semibold leading-none py-1">{title}</h4>
+        <p className="text-sm opacity-70 leading-relaxed font-medium">{message}</p>
       </div>
     </div>
   );

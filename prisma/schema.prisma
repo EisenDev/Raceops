@@ -33,6 +33,13 @@ enum EditRequestStatus {
   DECLINED
 }
 
+enum BountyStatus {
+  ACTIVE
+  CLAIMED
+  VOID
+  NULLIFIED
+}
+
 enum EditRequestModule {
   GAME_SCORE
   TECHOPS
@@ -42,6 +49,30 @@ enum EditRequestModule {
 enum ScoringMode {
   TEAM_TOTAL
   MEMBER_BREAKDOWN
+}
+
+enum LanguageTrack {
+  PYTHON
+  PHP_NATIVE
+  LARAVEL
+  VUE
+  JAVASCRIPT
+}
+
+enum ValidationRule {
+  EXACT_MATCH
+  NORMALIZED_EXACT_MATCH
+  OUTPUT_MATCH
+  REQUIRES_SEMICOLON
+  REQUIRES_COLON
+  REQUIRES_BOTH_SEMICOLON_AND_COLON
+  CUSTOM_EXPECTED_ANSWER
+}
+
+enum Difficulty {
+  MEDIUM
+  HARD
+  VERY_HARD
 }
 
 model User {
@@ -55,9 +86,12 @@ model User {
   submittedScores  GameScore[]   @relation("SubmittedBy")
   reviewedRequests EditRequest[] @relation("ReviewedBy")
   sentRequests     EditRequest[] @relation("RequestedBy")
+  recordedBounties Bounty[]
+  assignedTeams    Team[]        @relation("AssignedFacilitator")
   auditLogs        AuditLog[]
   generatedCards   TechOpsCard[] @relation("GeneratedBy")
   scans            TechOpsScan[]
+  codeAttempts     CodeRunnerAttempt[]
 }
 
 model Team {
@@ -68,12 +102,16 @@ model Team {
   totalScore   Int           @default(0)
   techOpsScore Int           @default(0)
   bountyScore  Int           @default(0)
+  assignedFacilitatorId String?
+  assignedFacilitator   User?   @relation("AssignedFacilitator", fields: [assignedFacilitatorId], references: [id])
   members      TeamMember[]
   gameScores   GameScore[]
   techOpsCards TechOpsCard[]
   scans        TechOpsScan[]
-  bounties     Bounty[]
+  bountyTarget Bounty?       @relation("TargetTeam")
+  bountiesWon  Bounty[]      @relation("ClaimedBy")
   editRequests EditRequest[]
+  codeAttempts CodeRunnerAttempt[]
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 }
@@ -162,14 +200,19 @@ model TechOpsScan {
 }
 
 model Bounty {
-  id        String   @id @default(uuid())
-  teamId    String
-  team      Team     @relation(fields: [teamId], references: [id])
-  code      String   @unique
-  status    String   @default("AVAILABLE")
-  points    Int      @default(100)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id              String       @id @default(uuid())
+  teamId          String       @unique
+  team            Team         @relation("TargetTeam", fields: [teamId], references: [id])
+  code            String       @unique
+  points          Int          @default(100)
+  status          BountyStatus @default(ACTIVE)
+  claimedByTeamId String?
+  claimedByTeam   Team?        @relation("ClaimedBy", fields: [claimedByTeamId], references: [id])
+  recordedById    String?
+  recordedBy      User?        @relation(fields: [recordedById], references: [id])
+  recordedAt      DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
 }
 
 model EditRequest {
@@ -209,4 +252,45 @@ model GameSetting {
   value     String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model CodeChallenge {
+  id              String         @id @default(uuid())
+  teamColor       String?        // Made optional
+  languageTrack   LanguageTrack
+  stationNumber   Int?           // Made optional
+  difficulty      Difficulty     @default(MEDIUM)
+  title           String
+  prompt          String         @db.Text
+  participantCode String         @db.Text // Renamed from incompleteCode
+  correctCode     String         @db.Text
+  buggyCode       String         @db.Text
+  cardCode        String?        @unique // Made optional
+  expectedAnswer  String?        @db.Text
+  expectedOutput  String?        @db.Text
+  validationRule  ValidationRule @default(EXACT_MATCH)
+  genericHint     String?
+  status          TechOpsCardStatus @default(ACTIVE)
+  attempts        CodeRunnerAttempt[]
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  // @@unique([teamColor, languageTrack, stationNumber]) // Removed this constraint as it's no longer the primary lookup
+}
+
+model CodeRunnerAttempt {
+  id              String        @id @default(uuid())
+  challengeId     String?       // Made optional for cases where no match is found
+  challenge       CodeChallenge? @relation(fields: [challengeId], references: [id])
+  teamId          String
+  team            Team          @relation(fields: [teamId], references: [id])
+  languageTrack   LanguageTrack // Explicitly track which tab was used
+  submittedCode   String        @db.Text
+  statusCode      Int
+  result          String
+  accepted        Boolean
+  genericHint     String?
+  submittedById   String
+  submittedBy     User          @relation(fields: [submittedById], references: [id])
+  createdAt       DateTime      @default(now())
 }

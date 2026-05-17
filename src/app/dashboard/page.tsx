@@ -1,99 +1,139 @@
-import { SectionHeader } from '@/components/ui/SectionHeader';
+import { Button } from '@/components/ui/Button';
 import { MetricCard } from '@/components/ui/MetricCard';
 import { PageSection } from '@/components/ui/PageSection';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
-import { Trophy, Gamepad2, QrCode, History } from 'lucide-react';
+import { Card } from '@/components/ui/Card';
+import { Trophy, Gamepad2, History, Activity, Zap, ChevronRight } from 'lucide-react';
 import db from '@/lib/db';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/Badge';
+import { getSetting } from '@/lib/actions/settings';
+import { formatSeconds } from '@/lib/utils';
+import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
 
 export default async function DashboardPage() {
-  const [teamCount, gameCount, cardGeneratedCount, scanCount, editRequestCount, topTeams] = await Promise.all([
+  const [
+    teamCount, 
+    gameCount, 
+    editRequestCount, 
+    rawTeams,
+    scoresLocked
+  ] = await Promise.all([
     db.team.count(),
     db.game.count(),
-    db.techOpsCard.count(),
-    db.techOpsScan.count(),
     db.editRequest.count({ where: { status: 'PENDING' } }),
     db.team.findMany({
-      orderBy: { totalScore: 'desc' },
-      take: 3
-    })
+      include: {
+        gameScores: {
+          select: { totalPoints: true }
+        }
+      }
+    }),
+    getSetting('scoresLocked').then(v => v === 'true')
   ]);
+  
+  const topTeams = rawTeams
+    .map((team) => ({
+      ...team,
+      completedGames: team.gameScores.length,
+      gameTotal: team.gameScores.reduce((sum, score) => sum + score.totalPoints, 0),
+    }))
+    .sort((a, b) => b.completedGames - a.completedGames || a.gameTotal - b.gameTotal || a.name.localeCompare(b.name))
+    .slice(0, 5);
 
   const stats = [
     { label: "Total Teams", value: teamCount.toString(), icon: Trophy },
-    { label: "Games Added", value: gameCount.toString(), icon: Gamepad2 },
-    { label: "Cards Scanned", value: scanCount.toString(), icon: QrCode },
+    { label: "Games Active", value: gameCount.toString(), icon: Gamepad2 },
     { label: "Pending Edits", value: editRequestCount.toString(), icon: History },
+    { label: "Status", value: "Optimal", icon: Activity },
   ];
 
   return (
-    <PageSection className="py-4">
-      <SectionHeader 
-        title="Infosoft Amazing Race 2026" 
-        description="Event dashboard and real-time operations summary."
-      />
+    <PageSection className="py-4 pb-24">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-12">
+        <div className="space-y-1">
+          <h1 className="text-4xl font-semibold tracking-tight text-white">Dashboard</h1>
+          <p className="text-sm text-muted-foreground">Overview of current event progress.</p>
+        </div>
+        <div className="flex items-center gap-3">
+           <Badge variant={scoresLocked ? 'error' : 'success'} className="px-3 py-1">
+             {scoresLocked ? 'Scores Locked' : 'Live'}
+           </Badge>
+        </div>
+      </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.map((stat, i) => (
           <MetricCard 
             key={i}
             label={stat.label}
             value={stat.value}
+            variant={i === 0 ? 'ivory' : 'default'}
           />
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pt-8">
-        <Card className="border-none shadow-sm h-full">
-          <CardHeader>
-            <CardTitle>Leaderboard Preview</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {topTeams.length === 0 ? (
-              <EmptyState 
-                title="No rankings yet"
-                description="Teams will appear here once they start scoring points."
-                className="py-6"
-              />
-            ) : (
-              <div className="space-y-4">
-                {topTeams.map((team, i) => (
-                  <div key={team.id} className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                       <span className="text-xs font-black text-[#999999]">#0{i+1}</span>
-                       <span className="font-bold uppercase tracking-tight">{team.name}</span>
-                    </div>
-                    <span className="text-xl font-black">{team.totalScore} pts</span>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 pt-10">
+        {/* Standings */}
+        <Card className="lg:col-span-2 p-8 bg-white/[0.02] border-white/5">
+          <div className="flex items-center justify-between mb-8">
+            <h3 className="text-xl font-semibold text-white">Live Standings</h3>
+            <Link href="/scores" className="text-xs font-medium text-muted-foreground hover:text-accent flex items-center gap-1 transition-colors">
+              Full Standings <ChevronRight size={14} />
+            </Link>
+          </div>
+
+          {topTeams.length === 0 ? (
+            <EmptyState 
+              title="No data available"
+              description="Teams will appear here once results are recorded."
+              className="py-12 bg-black/20"
+            />
+          ) : (
+            <div className="space-y-3">
+              {topTeams.map((team, i) => (
+                <div key={team.id} className="flex items-center justify-between p-4 rounded-xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] transition-all">
+                  <div className="flex items-center gap-4">
+                     <span className={cn(
+                       "text-xs font-semibold w-8 h-8 rounded-full flex items-center justify-center border",
+                       i === 0 ? "bg-accent text-black border-accent" : "text-muted-foreground border-white/5"
+                     )}>
+                       {i + 1}
+                     </span>
+                     <span className="font-medium text-white">{team.name}</span>
                   </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
+                  <div className="text-right">
+                    <p className="text-lg font-semibold text-white">{formatSeconds(team.gameTotal)}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </Card>
 
-        <Card className="border-none shadow-sm h-full">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle>TechOps Stats</CardTitle>
-            <QrCode size={16} className="text-[#999999]" />
-          </CardHeader>
-          <CardContent className="pt-4">
-             <div className="space-y-6">
-                <div className="flex justify-between items-end">
-                   <p className="text-[10px] font-black uppercase tracking-widest text-[#999999]">Inventory Status</p>
-                   <p className="text-2xl font-black">{cardGeneratedCount}</p>
-                </div>
-                <div className="h-2 w-full bg-[#F9F9F9] rounded-full overflow-hidden">
-                   <div 
-                     className="h-full bg-[#1A1A1A] transition-all duration-500" 
-                     style={{ width: `${cardGeneratedCount > 0 ? (scanCount / cardGeneratedCount) * 100 : 0}%` }}
-                   />
-                </div>
-                <p className="text-[10px] font-bold text-[#666666] uppercase">{scanCount} cards claimed out of {cardGeneratedCount} total generated.</p>
-             </div>
-          </CardContent>
-        </Card>
+        {/* Info */}
+        <div className="space-y-8">
+          <Card className="p-8 bg-white/[0.02] border-white/5">
+            <h3 className="text-xl font-semibold text-white mb-6">System Health</h3>
+            <div className="space-y-6">
+               <div className="flex items-center justify-between p-4 rounded-xl bg-black/20 border border-white/5">
+                  <div className="flex items-center gap-3">
+                     <History size={16} className="text-muted-foreground" />
+                     <span className="text-sm font-medium text-white">Pending Edits</span>
+                  </div>
+                  <span className="text-lg font-semibold text-accent">{editRequestCount}</span>
+               </div>
+               
+               <Link href="/api/export/scores" download className="block">
+                  <Button variant="secondary" className="w-full h-12 text-xs">
+                     Export results
+                  </Button>
+               </Link>
+            </div>
+          </Card>
+        </div>
       </div>
     </PageSection>
   );

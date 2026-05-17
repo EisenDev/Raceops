@@ -1,6 +1,5 @@
-import { SectionHeader } from '@/components/ui/SectionHeader';
 import { PageSection } from '@/components/ui/PageSection';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Info } from 'lucide-react';
 import db from '@/lib/db';
@@ -9,6 +8,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { EditGameModal } from '@/components/modules/games/edit-game-modal';
 import { getCurrentUser } from '@/lib/session';
 import { TeamScoringCard } from '@/components/modules/games/team-scoring-card';
+import { isScoresLocked } from '@/lib/actions/settings';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,17 +20,26 @@ export default async function GameDetailPage({ params }: GameDetailPageProps) {
   const { gameId } = await params;
   const user = await getCurrentUser();
   const isAdmin = user?.role === 'ADMIN';
+  const isLocked = await isScoresLocked();
   
-  const game = await db.game.findUnique({
-    where: { id: gameId },
-    include: {
-      gameScores: {
-        include: {
-          memberScores: true
+  const [game, pendingRequests] = await Promise.all([
+    db.game.findUnique({
+      where: { id: gameId },
+      include: {
+        gameScores: {
+          include: {
+            memberScores: true
+          }
         }
       }
-    }
-  });
+    }),
+    db.editRequest.findMany({
+      where: { 
+        module: 'GAME_SCORE',
+        status: 'PENDING'
+      }
+    })
+  ]);
 
   if (!game) {
     notFound();
@@ -38,34 +47,39 @@ export default async function GameDetailPage({ params }: GameDetailPageProps) {
 
   const teams = await db.team.findMany({
     include: {
-      members: true
+      members: true,
     },
     orderBy: { name: 'asc' }
   });
 
   return (
-    <PageSection spacing="lg" className="py-4">
-      <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-8">
-        <SectionHeader 
-          title={game.name} 
-          description={`Maximum possible points: ${game.maxPoints}`}
-          className="pb-0"
-        />
-        <div className="flex gap-2">
-          <Badge variant={game.status === 'ACTIVE' ? 'success' : 'muted'}>{game.status}</Badge>
-          {isAdmin && <EditGameModal game={game} />}
+    <PageSection className="py-4 pb-24">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8 mb-12">
+        <div className="space-y-2">
+           <div className="flex items-center gap-3">
+              <h1 className="text-4xl font-semibold tracking-tight text-white">{game.name}</h1>
+              <Badge variant={game.status === 'ACTIVE' ? 'success' : 'muted'} className="px-2 py-0">
+                {game.status === 'ACTIVE' ? 'Live' : 'Inactive'}
+              </Badge>
+           </div>
+        </div>
+        <div className="flex items-center gap-3">
+          {isAdmin && <EditGameModal game={game} disabled={isLocked} />}
+          {isLocked && (
+            <Badge variant="error" className="px-3 py-1 font-semibold">Locked</Badge>
+          )}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-6">
-          <h3 className="text-xs font-black uppercase tracking-[0.2em] text-[#999999] px-2">Team Scoring</h3>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+        <div className="lg:col-span-7 space-y-8">
+          <p className="text-xs font-semibold text-muted-foreground opacity-50 px-1">Game performance logs</p>
           
           {teams.length === 0 ? (
             <EmptyState 
-              title="No teams found"
-              description="Register teams first to enable scoring for this game."
-              className="bg-white rounded-3xl border border-[#1A1A1A]/5"
+              title="No teams registered"
+              description="Register teams in the registry to start recording scores for this game."
+              className="bg-white/[0.02] border-white/5 py-24"
             />
           ) : (
             <div className="space-y-4">
@@ -75,29 +89,34 @@ export default async function GameDetailPage({ params }: GameDetailPageProps) {
                   game={game}
                   team={team}
                   isAdmin={isAdmin}
+                  currentUser={user as { id: string; role: 'ADMIN' | 'FACILITATOR' }} 
                   existingScore={game.gameScores.find(s => s.teamId === team.id)}
+                  pendingRequest={pendingRequests.find(r => r.referenceId === game.gameScores.find(s => s.teamId === team.id)?.id)}
                 />
               ))}
             </div>
           )}
         </div>
 
-        <div className="space-y-6">
-          <h3 className="text-xs font-black uppercase tracking-[0.2em] text-[#999999] px-2">Game Mechanics</h3>
-          <Card className="border-none shadow-sm">
-            <CardContent className="pt-6 prose prose-sm leading-relaxed text-[#666666]">
+        <div className="lg:col-span-5 space-y-12">
+          <div className="space-y-6">
+            <p className="text-xs font-semibold text-muted-foreground opacity-50 px-1">How to play</p>
+            <Card variant="ivory" className="p-8 border-none shadow-xl">
               {game.mechanics ? (
-                <div className="whitespace-pre-wrap font-medium text-sm leading-relaxed">{game.mechanics}</div>
+                <div className="whitespace-pre-wrap font-medium text-sm leading-relaxed opacity-80">{game.mechanics}</div>
               ) : (
-                <p className="italic text-[#999999]">No mechanics defined for this game yet.</p>
+                <p className="italic opacity-40 text-sm">No mechanics defined for this game.</p>
               )}
-            </CardContent>
-          </Card>
+            </Card>
+          </div>
           
-          <div className="p-5 rounded-2xl bg-blue-50 border border-blue-100 flex gap-4 items-start">
-             <Info size={18} className="text-blue-500 shrink-0 mt-0.5" />
-             <p className="text-xs text-blue-700 leading-relaxed font-medium">
-                Facilitators can record scores once. Further edits require an Admin correction request.
+          <div className="p-8 rounded-3xl bg-white/[0.02] border border-white/5 space-y-4">
+             <div className="flex items-center gap-3 text-accent opacity-80">
+                <Info size={18} />
+                <p className="text-xs font-semibold uppercase tracking-widest">Notice</p>
+             </div>
+             <p className="text-sm text-muted-foreground leading-relaxed font-medium">
+                You can only record scores for your assigned team. Once a score is saved, you must request an edit for any corrections.
              </p>
           </div>
         </div>

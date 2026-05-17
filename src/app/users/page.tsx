@@ -1,12 +1,12 @@
-import { SectionHeader } from '@/components/ui/SectionHeader';
 import { PageSection } from '@/components/ui/PageSection';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
-import { ShieldCheck, Users, Calendar } from 'lucide-react';
+import { ShieldCheck, Users, Calendar, Key } from 'lucide-react';
 import db from '@/lib/db';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { CreateFacilitatorModal } from '@/components/modules/users/create-facilitator-modal';
+import { cn } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,52 +16,52 @@ export default async function UsersPage() {
   });
 
   return (
-    <PageSection className="py-4">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-        <SectionHeader 
-          title="Users & Facilitators" 
-          description="Manage system access and staff roles."
-          className="pb-0"
-        />
+    <PageSection className="py-4 pb-24">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-12">
+        <div className="space-y-1">
+          <h1 className="text-4xl font-semibold tracking-tight text-white">Staff</h1>
+          <p className="text-sm text-muted-foreground font-medium">Manage system access and personnel roles.</p>
+        </div>
         <CreateFacilitatorModal />
       </div>
 
       {users.length === 0 ? (
         <EmptyState 
           title="No users found"
-          description="This shouldn't happen as the admin should exist."
-          icon={<Users size={32} />}
+          description="Registry is empty."
+          icon={<Users size={40} className="text-muted-foreground/20" />}
         />
       ) : (
-        <Card className="border-none shadow-sm overflow-hidden">
-          <div className="divide-y divide-[#1A1A1A]/5">
+        <Card className="p-0 border-white/5 bg-white/[0.01] overflow-hidden rounded-xl">
+          <div className="divide-y divide-white/5">
             {users.map((user) => (
-              <div key={user.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-6 bg-white hover:bg-[#F9F9F9] transition-colors gap-4">
+              <div key={user.id} className="group flex flex-col sm:flex-row sm:items-center justify-between p-6 hover:bg-white/[0.02] transition-all gap-6">
                 <div className="flex items-center gap-4">
-                  <div className="bg-[#1A1A1A]/5 p-3 rounded-2xl">
-                    <ShieldCheck size={20} className={user.role === 'ADMIN' ? 'text-[#1A1A1A]' : 'text-[#666666]'} />
+                  <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center text-accent">
+                    <ShieldCheck size={20} />
                   </div>
                   <div>
-                    <h4 className="font-bold text-[#1A1A1A]">{user.name}</h4>
-                    <p className="text-xs text-[#666666] font-medium tracking-tight">{user.username}</p>
+                    <h4 className="text-lg font-medium text-white">{user.name}</h4>
+                    <p className="text-xs text-muted-foreground opacity-60">{user.username}</p>
                   </div>
                 </div>
                 
-                <div className="flex items-center gap-6 sm:gap-8 ml-12 sm:ml-0">
+                <div className="flex flex-wrap items-center gap-8 sm:gap-12">
                   <div className="space-y-1">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-[#999999]">Role</p>
-                    <Badge variant={user.role === 'ADMIN' ? 'default' : 'muted'}>{user.role}</Badge>
+                    <p className="text-[10px] font-medium text-muted-foreground opacity-40 uppercase tracking-widest">Role</p>
+                    <Badge variant={user.role === 'ADMIN' ? 'default' : 'muted'} className="px-2 py-0">
+                       {user.role}
+                    </Badge>
                   </div>
                   
-                  <div className="space-y-1 hidden md:block">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-[#999999]">Joined</p>
-                    <div className="flex items-center text-xs font-bold text-[#666666]">
-                      <Calendar size={12} className="mr-1.5 opacity-50" />
-                      {new Date(user.createdAt).toLocaleDateString()}
-                    </div>
+                  <div className="space-y-1 hidden lg:block">
+                    <p className="text-[10px] font-medium text-muted-foreground opacity-40 uppercase tracking-widest">Joined</p>
+                    <p className="text-sm font-medium text-white/70">
+                      {new Date(user.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
+                    </p>
                   </div>
 
-                  <Button variant="ghost" size="sm" className="h-10 px-4 font-bold text-xs">Manage</Button>
+                  <Button variant="ghost" size="sm" className="text-xs h-10 px-4">Edit</Button>
                 </div>
               </div>
             ))}
