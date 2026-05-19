@@ -4,12 +4,14 @@ import db from '@/lib/db';
 import { getCurrentUser } from '@/lib/session';
 import { revalidatePath } from 'next/cache';
 
-export async function getSetting(key: string) {
+import { cache } from 'react';
+
+export const getSetting = cache(async (key: string) => {
   const setting = await db.gameSetting.findUnique({
     where: { key }
   });
   return setting?.value || null;
-}
+});
 
 export async function isScoresLocked() {
   const value = await getSetting('scoresLocked');
