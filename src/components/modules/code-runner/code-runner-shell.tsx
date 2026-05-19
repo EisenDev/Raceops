@@ -1,10 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useActionState, useState, useEffect } from 'react';
 import { PageSection } from '@/components/ui/PageSection';
 import { CodeRunnerForm } from './code-runner-form';
 import { ChallengeBrowser } from './challenge-browser';
 import { AttemptHistory } from './attempt-history';
+import { CodeRunnerResult } from './CodeRunnerResult';
+import { runCodeRunner } from '@/lib/actions/code-runner';
 import { LanguageTrack, CodeChallenge, CodeRunnerAttempt, Team, User } from '@prisma/client';
 import { cn } from '@/lib/utils';
 import { HardDrive, History, X, Clock } from 'lucide-react';
@@ -33,6 +35,9 @@ const languages = [
 export function CodeRunnerShell({ teams, challenges, attempts, isAdmin, assignedTeam }: CodeRunnerShellProps) {
   const [selectedLang, setSelectedLang] = useState<LanguageTrack>(LanguageTrack.PYTHON);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  
+  // Lifted state for code runner action
+  const [state, action, isPending] = useActionState(runCodeRunner, null);
 
   const filteredChallenges = challenges.filter(c => c.languageTrack === selectedLang);
   
@@ -92,36 +97,38 @@ export function CodeRunnerShell({ teams, challenges, attempts, isAdmin, assigned
         </Button>
       </div>
 
-      <div className={cn(
-        "grid grid-cols-1 gap-12 transition-all duration-500",
-        isAdmin ? "lg:grid-cols-12" : "max-w-4xl"
-      )}>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
         {/* Left: Validation Form */}
         <div className={cn(
-          isAdmin ? "lg:col-span-7" : "col-span-1",
-          "space-y-10"
+          "lg:col-span-7 space-y-10"
         )}>
            <div className="space-y-4">
-              <p className="text-xs font-semibold text-muted-foreground opacity-50 px-1">Submission portal</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground opacity-30 px-1">Submission portal</p>
               <CodeRunnerForm 
                 teams={teams} 
                 selectedLanguage={selectedLang} 
                 assignedTeam={assignedTeam}
+                state={state}
+                action={action}
+                isPending={isPending}
               />
            </div>
         </div>
 
-        {/* Right: Challenge Browser (Admin Only in main view) */}
-        {isAdmin && (
-          <div className="lg:col-span-5 space-y-12">
-             <div className="space-y-12">
-                <div className="space-y-4">
-                   <p className="text-xs font-semibold text-muted-foreground opacity-50 px-1">Challenge library</p>
-                   <ChallengeBrowser challenges={filteredChallenges} isAdmin={isAdmin} />
-                </div>
-             </div>
-          </div>
-        )}
+        {/* Right Column: Library and Results */}
+        <div className="lg:col-span-5 space-y-10">
+           {isAdmin && (
+              <div className="space-y-4">
+                 <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground opacity-30 px-1">Challenge library</p>
+                 <ChallengeBrowser challenges={filteredChallenges} isAdmin={isAdmin} />
+              </div>
+           )}
+           
+           <div className="space-y-4">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground opacity-30 px-1">Current status</p>
+              <CodeRunnerResult state={state} />
+           </div>
+        </div>
       </div>
 
       {/* Right Floating Drawer for History */}

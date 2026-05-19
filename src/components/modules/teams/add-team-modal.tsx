@@ -101,11 +101,11 @@ function AddTeamModalContent({
                 <div className="relative">
                   <select 
                     name="assignedFacilitatorId" 
-                    className="flex h-12 w-full rounded-lg border border-[#1A1A1A]/10 bg-white pl-10 pr-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-[#1A1A1A]/20 transition-all appearance-none"
+                    className="flex h-12 w-full rounded-lg border border-[#1A1A1A]/10 bg-white pl-10 pr-4 text-sm font-bold text-[#1A1A1A] focus:outline-none focus:ring-2 focus:ring-[#1A1A1A]/20 transition-all appearance-none cursor-pointer"
                   >
-                    <option value="">No Facilitator</option>
+                    <option value="" className="text-[#1A1A1A] bg-white">No Facilitator</option>
                     {facilitators.map(f => (
-                      <option key={f.id} value={f.id}>{f.name}</option>
+                      <option key={f.id} value={f.id} className="text-[#1A1A1A] bg-white">{f.name}</option>
                     ))}
                   </select>
                   <User size={16} className="absolute left-3 top-4 text-[#999999]" />
