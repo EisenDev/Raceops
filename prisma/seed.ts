@@ -99,7 +99,19 @@ async function main() {
       },
     });
   }
-  console.log(`Seeded ${challenges.length} advanced code challenges.`);
+  // 5. Create Sample History (Year 2025)
+  await prisma.game.upsert({
+    where: { id: 'sample-history-game-2025' },
+    update: {},
+    create: {
+      id: 'sample-history-game-2025',
+      name: 'Legacy Logic Challenge',
+      mechanics: 'A historical challenge from the 2025 event cycle.',
+      eventYear: 2025,
+      status: 'COMPLETED'
+    }
+  });
+  console.log('Sample history for Year 2025 seeded.');
 
   console.log('Seeding completed.');
 }

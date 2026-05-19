@@ -1,823 +1,1064 @@
 import { LanguageTrack, Difficulty, ValidationRule } from '@prisma/client';
 
-export interface ChallengeSeed {
-  languageTrack: LanguageTrack;
-  difficulty: Difficulty;
-  title: string;
-  prompt: string;
-  participantCode: string;
-  correctCode: string;
-  buggyCode: string;
-  expectedOutput: string;
-  validationRule: ValidationRule;
-  genericHint: string;
-}
+export const challenges = [
+  {
+    languageTrack: LanguageTrack.PYTHON,
+    difficulty: Difficulty.MEDIUM,
+    title: 'Data Transformation Pipeline',
+    prompt: 'Given a list of user records, group them by region, calculate the total count, sum of scores, number of admins, and the average score. Print the summary formatted as: [REGION] Users: count | Admins: count | Avg Score: avg_score',
+    participantCode: `data = [
+    {"user": "Alice", "role": "admin", "score": 85, "region": "APAC"},
+    {"user": "Bob", "role": "user", "score": 92, "region": "EMEA"},
+    {"user": "Charlie", "role": "admin", "score": 78, "region": "APAC"},
+    {"user": "Diana", "role": "user", "score": 88, "region": "NAMER"},
+]
 
-export const challenges: ChallengeSeed[] = [
-  // --- PYTHON ---
+def generate_report(records):
+    report = {}
+    for r in records:
+        reg = r["region"]
+        if reg not in report:
+            report[reg] = {"count": 0, "total_score": 0, "admins": 0}
+        report[reg]["count"] += 1
+        report[reg]["total_score"] += r["score"]
+        if r["role"] == "admin":
+            report[reg]["admins"] += 0 # Bug: Adding 0 instead of 1
+    
+    for reg, stats in sorted(report.items()):
+        avg = stats["total_score"] / stats["count"]
+        print(f"[{reg}] Users: {stats['count']} | Admins: {stats['admins']} | Avg Score: {avg:.1f}")
+
+generate_report(data)`,
+    buggyCode: `data = [
+    {"user": "Alice", "role": "admin", "score": 85, "region": "APAC"},
+    {"user": "Bob", "role": "user", "score": 92, "region": "EMEA"},
+    {"user": "Charlie", "role": "admin", "score": 78, "region": "APAC"},
+    {"user": "Diana", "role": "user", "score": 88, "region": "NAMER"},
+]
+
+def generate_report(records):
+    report = {}
+    for r in records:
+        reg = r["region"]
+        if reg not in report:
+            report[reg] = {"count": 0, "total_score": 0, "admins": 0}
+        report[reg]["count"] += 1
+        report[reg]["total_score"] += r["score"]
+        if r["role"] == "admin":
+            report[reg]["admins"] += 0 # Subtle Bug
+    
+    for reg, stats in sorted(report.items()):
+        avg = stats["total_score"] / stats["count"]
+        print(f"[{reg}] Users: {stats['count']} | Admins: {stats['admins']} | Avg Score: {avg:.1f}")
+
+generate_report(data)`,
+    correctCode: `data = [
+    {"user": "Alice", "role": "admin", "score": 85, "region": "APAC"},
+    {"user": "Bob", "role": "user", "score": 92, "region": "EMEA"},
+    {"user": "Charlie", "role": "admin", "score": 78, "region": "APAC"},
+    {"user": "Diana", "role": "user", "score": 88, "region": "NAMER"},
+]
+
+def generate_report(records):
+    report = {}
+    for r in records:
+        reg = r["region"]
+        if reg not in report:
+            report[reg] = {"count": 0, "total_score": 0, "admins": 0}
+        report[reg]["count"] += 1
+        report[reg]["total_score"] += r["score"]
+        if r["role"] == "admin":
+            report[reg]["admins"] += 1
+    
+    for reg, stats in sorted(report.items()):
+        avg = stats["total_score"] / stats["count"]
+        print(f"[{reg}] Users: {stats['count']} | Admins: {stats['admins']} | Avg Score: {avg:.1f}")
+
+generate_report(data)`,
+    expectedOutput: `[APAC] Users: 2 | Admins: 2 | Avg Score: 81.5
+[EMEA] Users: 1 | Admins: 0 | Avg Score: 92.0
+[NAMER] Users: 1 | Admins: 0 | Avg Score: 88.0`,
+    validationRule: ValidationRule.NORMALIZED_EXACT_MATCH,
+    genericHint: "Check structure and logic.",
+  },
   {
     languageTrack: LanguageTrack.PYTHON,
     difficulty: Difficulty.HARD,
-    title: 'Advanced Data Pipeline',
-    prompt: 'Process a list of raw user telemetry logs. Filter out system events, convert timestamps, normalize scores, and group results by region.',
-    participantCode: `import json
-from datetime import datetime
+    title: 'Log Analyzer & Formatter',
+    prompt: 'Parse a list of server logs. Count total errors and extract a unique, sorted list of IPs associated with those errors.',
+    participantCode: `logs = [
+    "[2026-05-18 10:00:00] ERROR: User connection failed (IP: 192.168.1.10)",
+    "[2026-05-18 10:05:12] INFO: Session started for user 45",
+    "[2026-05-18 10:10:03] ERROR: Database timeout (IP: 10.0.0.5)",
+    "[2026-05-18 10:15:00] WARN: High memory usage",
+]
 
-def process_telemetry(raw_data):
-    # raw_data: list of JSON strings
-    # 1. Filter: "event_type" == "user_action"
-    # 2. Transform: Convert "ts" (ms) to ISO string
-    # 3. Normalize: "score" should be 0.0 to 1.0 (div by 100)
-    # 4. Group by: "region"
+def extract_errors(log_lines):
+    error_count = 0
+    unique_ips = set()
     
-    processed = {}
-    for entry in raw_data:
-        data = json.loads(entry)
-        if data.get("event_type") == "user_action":
-            region = data.get("region", "UNKNOWN")
-            
-            # Timestamp conversion
-            dt = datetime.fromtimestamp(data["ts"] / 1000.0)
-            iso_ts = dt.isoformat()
-            
-            # Score normalization
-            norm_score = min(1.0, max(0.0, data["score"] / 100.0))
-            
-            if region not in processed:
-                processed[region] = []
-                
-            processed[region].append({
-                "uid": data["uid"],
-                "timestamp": iso_ts,
-                "score": norm_score
-            })
-            
-    return processed`,
-    correctCode: `import json
-from datetime import datetime
-
-def process_telemetry(raw_data):
-    # raw_data: list of JSON strings
-    # 1. Filter: "event_type" == "user_action"
-    # 2. Transform: Convert "ts" (ms) to ISO string
-    # 3. Normalize: "score" should be 0.0 to 1.0 (div by 100)
-    # 4. Group by: "region"
+    for line in log_lines:
+        if "ERROR" in line: # Subtle bug: missing colon can match false positives
+            error_count += 1
+            ip_start = line.find("IP: ")
+            if ip_start != -1:
+                ip_end = line.find(")", ip_start)
+                ip = line[ip_start+4:ip_end]
+                unique_ips.add(ip)
     
-    processed = {}
-    for entry in raw_data:
-        data = json.loads(entry)
-        if data.get("event_type") == "user_action":
-            region = data.get("region", "UNKNOWN")
-            
-            # Timestamp conversion
-            dt = datetime.fromtimestamp(data["ts"] / 1000.0)
-            iso_ts = dt.isoformat()
-            
-            # Score normalization
-            norm_score = min(1.0, max(0.0, data["score"] / 100.0))
-            
-            if region not in processed:
-                processed[region] = []
-                
-            processed[region].append({
-                "uid": data["uid"],
-                "timestamp": iso_ts,
-                "score": norm_score
-            })
-            
-    return processed`,
-    buggyCode: `import json
-from datetime import datetime
+    print(f"Total Errors Found: {error_count}")
+    print(f"Unique Error IPs: {', '.join(sorted(list(unique_ips)))}")
 
-def process_telemetry(raw_data):
-    processed = {}
-    for entry in raw_data:
-        data = json.loads(entry)
-        if data.get("event_type") == "user_action":
-            region = data.get("region", "UNKNOWN")
-            
-            # Bug: using integer division instead of float
-            dt = datetime.fromtimestamp(data["ts"] // 1000)
-            iso_ts = dt.isoformat()
-            
-            # Bug: missing normalization clamping
-            norm_score = data["score"] / 100
-            
-            if region not in processed:
-                processed[region] = []
-                
-            processed[region].append({
-                "uid": data["uid"],
-                "timestamp": iso_ts,
-                "score": norm_score
-            })
-            
-    return processed`,
-    expectedOutput: 'Dictionary grouped by region with normalized scores and ISO timestamps.',
+extract_errors(logs)`,
+    buggyCode: `logs = [
+    "[2026-05-18 10:00:00] ERROR: User connection failed (IP: 192.168.1.10)",
+    "[2026-05-18 10:05:12] INFO: Session started for user 45",
+    "[2026-05-18 10:10:03] ERROR: Database timeout (IP: 10.0.0.5)",
+    "[2026-05-18 10:15:00] WARN: High memory usage",
+]
+
+def extract_errors(log_lines):
+    error_count = 0
+    unique_ips = set()
+    
+    for line in log_lines:
+        if "ERROR" in line: # Subtle bug: missing colon can match false positives
+            error_count += 1
+            ip_start = line.find("IP: ")
+            if ip_start != -1:
+                ip_end = line.find(")", ip_start)
+                ip = line[ip_start+4:ip_end]
+                unique_ips.add(ip)
+    
+    print(f"Total Errors Found: {error_count}")
+    print(f"Unique Error IPs: {', '.join(sorted(list(unique_ips)))}")
+
+extract_errors(logs)`,
+    correctCode: `logs = [
+    "[2026-05-18 10:00:00] ERROR: User connection failed (IP: 192.168.1.10)",
+    "[2026-05-18 10:05:12] INFO: Session started for user 45",
+    "[2026-05-18 10:10:03] ERROR: Database timeout (IP: 10.0.0.5)",
+    "[2026-05-18 10:15:00] WARN: High memory usage",
+]
+
+def extract_errors(log_lines):
+    error_count = 0
+    unique_ips = set()
+    
+    for line in log_lines:
+        if "ERROR:" in line:
+            error_count += 1
+            ip_start = line.find("IP: ")
+            if ip_start != -1:
+                ip_end = line.find(")", ip_start)
+                ip = line[ip_start+4:ip_end]
+                unique_ips.add(ip)
+    
+    print(f"Total Errors Found: {error_count}")
+    print(f"Unique Error IPs: {', '.join(sorted(list(unique_ips)))}")
+
+extract_errors(logs)`,
+    expectedOutput: `Total Errors Found: 2
+Unique Error IPs: 10.0.0.5, 192.168.1.10`,
     validationRule: ValidationRule.NORMALIZED_EXACT_MATCH,
-    genericHint: 'Check the floating point division and clamping logic.'
-  },
-  {
-    languageTrack: LanguageTrack.PYTHON,
-    difficulty: Difficulty.VERY_HARD,
-    title: 'Enterprise Log Formatter',
-    prompt: 'Parse standard Apache-style logs using regex. Extract client IP, method, and response size. Aggregate total bytes per method.',
-    participantCode: `import re
-
-def aggregate_log_stats(logs):
-    # Format: 127.0.0.1 - - [15/May/2026:14:00:00 +0000] "GET /api HTTP/1.1" 200 1234
-    regex = r'(\\d+\\.\\d+\\.\\d+\\.\\d+).*"(GET|POST|PUT|DELETE)\\s+.*"\\s+\\d+\\s+(\\d+)'
-    
-    stats = {
-        "GET": 0, "POST": 0, "PUT": 0, "DELETE": 0
-    }
-    
-    for line in logs.strip().split("\\n"):
-        match = re.search(regex, line)
-        if match:
-            method = match.group(2)
-            bytes_sent = int(match.group(3))
-            
-            if method in stats:
-                stats[method] += bytes_sent
-                
-    # Prepare summary string
-    report = []
-    for method, total in stats.items():
-        if total > 0:
-            report.append(f"{method}: {total} bytes")
-            
-    return "\\n".join(report)`,
-    correctCode: `import re
-
-def aggregate_log_stats(logs):
-    # Format: 127.0.0.1 - - [15/May/2026:14:00:00 +0000] "GET /api HTTP/1.1" 200 1234
-    regex = r'(\\d+\\.\\d+\\.\\d+\\.\\d+).*"(GET|POST|PUT|DELETE)\\s+.*"\\s+\\d+\\s+(\\d+)'
-    
-    stats = {
-        "GET": 0, "POST": 0, "PUT": 0, "DELETE": 0
-    }
-    
-    for line in logs.strip().split("\\n"):
-        match = re.search(regex, line)
-        if match:
-            method = match.group(2)
-            bytes_sent = int(match.group(3))
-            
-            if method in stats:
-                stats[method] += bytes_sent
-                
-    # Prepare summary string
-    report = []
-    for method, total in stats.items():
-        if total > 0:
-            report.append(f"{method}: {total} bytes")
-            
-    return "\\n".join(report)`,
-    buggyCode: `import re
-
-def aggregate_log_stats(logs):
-    regex = r'(\\d+\\.\\d+\\.\\d+\\.\\d+).*"(GET|POST|PUT|DELETE)\\s+.*"\\s+\\d+\\s+(\\d+)'
-    
-    stats = {} # Bug: Dynamic dict without initialization leads to KeyErrors
-    
-    for line in logs.strip().split("\\n"):
-        match = re.search(regex, line)
-        if match:
-            method = match.group(2)
-            bytes_sent = match.group(3) # Bug: Missing int() conversion
-            
-            stats[method] += bytes_sent
-            
-    return stats`,
-    expectedOutput: 'GET: 4500 bytes\\nPOST: 1200 bytes',
-    validationRule: ValidationRule.NORMALIZED_EXACT_MATCH,
-    genericHint: 'Check capture group indexing and dictionary initialization.'
-  },
-
-  // --- PHP NATIVE ---
-  {
-    languageTrack: LanguageTrack.PHP_NATIVE,
-    difficulty: Difficulty.HARD,
-    title: 'Robust Order Processor',
-    prompt: 'Calculate shipping costs and subtotals for an order. Apply bulk discounts (10% off for 5+ items) and calculate VAT.',
-    participantCode: `function process_order_summary($items, $base_shipping = 50.00) {
-    $total_qty = 0;
-    $subtotal = 0.0;
-    
-    foreach ($items as $item) {
-        $total_qty += $item['qty'];
-        $item_total = $item['price'] * $item['qty'];
-        
-        // Bulk discount logic
-        if ($item['qty'] >= 5) {
-            $item_total *= 0.90;
-        }
-        
-        $subtotal += $item_total;
-    }
-    
-    // Free shipping for orders over 1000
-    $shipping = ($subtotal > 1000) ? 0.0 : $base_shipping;
-    
-    $vat = $subtotal * 0.12;
-    $grand_total = $subtotal + $shipping + $vat;
-    
-    return [
-        "subtotal" => number_format($subtotal, 2),
-        "shipping" => number_format($shipping, 2),
-        "vat" => number_format($vat, 2),
-        "total" => number_format($grand_total, 2)
-    ];
-}`,
-    correctCode: `function process_order_summary($items, $base_shipping = 50.00) {
-    $total_qty = 0;
-    $subtotal = 0.0;
-    
-    foreach ($items as $item) {
-        $total_qty += $item['qty'];
-        $item_total = $item['price'] * $item['qty'];
-        
-        // Bulk discount logic
-        if ($item['qty'] >= 5) {
-            $item_total *= 0.90;
-        }
-        
-        $subtotal += $item_total;
-    }
-    
-    // Free shipping for orders over 1000
-    $shipping = ($subtotal > 1000) ? 0.0 : $base_shipping;
-    
-    $vat = $subtotal * 0.12;
-    $grand_total = $subtotal + $shipping + $vat;
-    
-    return [
-        "subtotal" => number_format($subtotal, 2),
-        "shipping" => number_format($shipping, 2),
-        "vat" => number_format($vat, 2),
-        "total" => number_format($grand_total, 2)
-    ];
-}`,
-    buggyCode: `function process_order_summary($items, $base_shipping = 50.00) {
-    $total_qty = 0;
-    $subtotal = 0.0;
-    
-    foreach ($items as $item) {
-        $total_qty += $item['qty'];
-        $item_total = $item['price'] * $item['qty'];
-        
-        // Bug: applied discount after adding to subtotal
-        if ($item['qty'] >= 5) {
-            $subtotal += ($item_total * 0.90);
-        } else {
-            $subtotal += $item_total;
-        }
-    }
-    
-    // Bug: comparison operator logic error
-    $shipping = ($subtotal < 1000) ? 0.0 : $base_shipping;
-    
-    return $subtotal;
-}`,
-    expectedOutput: 'Associative array with formatted currency strings.',
-    validationRule: ValidationRule.REQUIRES_SEMICOLON,
-    genericHint: 'Check formatting functions and discount logic boundaries.'
+    genericHint: "Check structure and logic.",
   },
   {
     languageTrack: LanguageTrack.PHP_NATIVE,
-    difficulty: Difficulty.VERY_HARD,
-    title: 'Recursive Directory Mapper',
-    prompt: 'Implement a function to recursively map a nested array structure representing a file system to a flat list of paths.',
-    participantCode: `function flatten_file_tree($tree, $parent_path = "") {
-    $results = [];
-    
-    foreach ($tree as $node) {
-        $current_path = $parent_path . "/" . $node['name'];
-        
-        if ($node['type'] === 'file') {
-            $results[] = [
-                'path' => $current_path,
-                'size' => $node['size']
-            ];
-        } else if ($node['type'] === 'directory' && isset($node['children'])) {
-            $sub_results = flatten_file_tree($node['children'], $current_path);
-            $results = array_merge($results, $sub_results);
-        }
-    }
-    
-    // Sort by path length for presentation
-    usort($results, function($a, $b) {
-        return strlen($a['path']) - strlen($b['path']);
-    });
-    
-    return $results;
-}`,
-    correctCode: `function flatten_file_tree($tree, $parent_path = "") {
-    $results = [];
-    
-    foreach ($tree as $node) {
-        $current_path = $parent_path . "/" . $node['name'];
-        
-        if ($node['type'] === 'file') {
-            $results[] = [
-                'path' => $current_path,
-                'size' => $node['size']
-            ];
-        } else if ($node['type'] === 'directory' && isset($node['children'])) {
-            $sub_results = flatten_file_tree($node['children'], $current_path);
-            $results = array_merge($results, $sub_results);
-        }
-    }
-    
-    // Sort by path length for presentation
-    usort($results, function($a, $b) {
-        return strlen($a['path']) - strlen($b['path']);
-    });
-    
-    return $results;
-}`,
-    buggyCode: `function flatten_file_tree($tree, $parent_path = "") {
-    $results = [];
-    
-    foreach ($tree as $node) {
-        $current_path = $parent_path . $node['name']; # Bug: Missing separator
-        
-        if ($node['type'] === 'file') {
-            $results[] = $current_path;
-        } else {
-            # Bug: Infinite recursion if children is missing or path isn't passed
-            $results = array_push($results, flatten_file_tree($node['children']));
-        }
-    }
-    
-    return $results;
-}`,
-    expectedOutput: 'Flat list of file path objects sorted by depth.',
-    validationRule: ValidationRule.REQUIRES_SEMICOLON,
-    genericHint: 'Verify recursion parameters and array merging methods.'
-  },
+    difficulty: Difficulty.MEDIUM,
+    title: 'Nested Permission Checker',
+    prompt: 'Check a list of users for a specific required role or if they are an admin. Only check active users. Sort the authorized names alphabetically and print them.',
+    participantCode: `<?php
+$users = [
+    ['id' => 1, 'name' => 'Alice', 'roles' => ['editor', 'viewer'], 'active' => true],
+    ['id' => 2, 'name' => 'Bob', 'roles' => ['viewer'], 'active' => false],
+    ['id' => 3, 'name' => 'Charlie', 'roles' => ['admin', 'editor'], 'active' => true],
+];
 
-  // --- LARAVEL ---
-  {
-    languageTrack: LanguageTrack.LARAVEL,
-    difficulty: Difficulty.HARD,
-    title: 'Custom Middleware Guard',
-    prompt: 'Implement a middleware that checks if a user has a specific subscription tier and redirects if unauthorized.',
-    participantCode: `namespace App\\Http\\Middleware;
-
-use Closure;
-use Illuminate\\Http\\Request;
-use Symfony\\Component\\HttpFoundation\\Response;
-
-class SubscriptionGuard {
-    public function handle(Request $request, Closure $next, string $tier): Response {
-        $user = $request->user();
-        
-        if (!$user) {
-            return redirect()->route('login');
-        }
-        
-        if (!$user->hasSubscription($tier)) {
-            if ($request->expectsJson()) {
-                return response()->json(['error' => 'Upgrade required'], 403);
+function checkPermissions($users, $requiredRole) {
+    $authorized = [];
+    foreach ($users as $user) {
+        if ($user['active']) {
+            foreach ($user['roles'] as $role) {
+                // Bug: Checking wrong role logic, missing admin fallback
+                if ($role === $requiredRole) { 
+                    $authorized[] = $user['name'];
+                    break;
+                }
             }
-            return redirect()->route('billing.index')->with('warning', 'Access Restricted.');
         }
-        
-        // Log access for auditing
-        \\Log::info("Access granted to {user->id} for tier {tier}");
-        
-        return $next($request);
-    }
-}`,
-    correctCode: `namespace App\\Http\\Middleware;
-
-use Closure;
-use Illuminate\\Http\\Request;
-use Symfony\\Component\\HttpFoundation\\Response;
-
-class SubscriptionGuard {
-    public function handle(Request $request, Closure $next, string $tier): Response {
-        $user = $request->user();
-        
-        if (!$user) {
-            return redirect()->route('login');
-        }
-        
-        if (!$user->hasSubscription($tier)) {
-            if ($request->expectsJson()) {
-                return response()->json(['error' => 'Upgrade required'], 403);
-            }
-            return redirect()->route('billing.index')->with('warning', 'Access Restricted.');
-        }
-        
-        // Log access for auditing
-        \\Log::info("Access granted to {user->id} for tier {tier}");
-        
-        return $next($request);
-    }
-}`,
-    buggyCode: `namespace App\\Http\\Middleware;
-
-class SubscriptionGuard {
-    public function handle($request, $next) {
-        # Bug: Missing tier parameter from route definition
-        if ($request->user()->tier != 'PRO') {
-            return redirect('login');
-        }
-        
-        # Bug: Missing return next request
-        $next($request);
-    }
-}`,
-    expectedOutput: 'Laravel Middleware Class',
-    validationRule: ValidationRule.REQUIRES_SEMICOLON,
-    genericHint: 'Check middleware handle parameters and return flow.'
-  },
-  {
-    languageTrack: LanguageTrack.LARAVEL,
-    difficulty: Difficulty.VERY_HARD,
-    title: 'Repository Pattern Implementation',
-    prompt: 'Implement a Repository method that performs a complex search on orders, filtering by status and customer email using Eloquent relations.',
-    participantCode: `namespace App\\Repositories;
-
-use App\\Models\\Order;
-use Illuminate\\Support\\Collection;
-
-class OrderRepository {
-    public function searchOrders(array $criteria): Collection {
-        $query = Order::query();
-        
-        if (!empty($criteria['status'])) {
-            $query->where('status', $criteria['status']);
-        }
-        
-        if (!empty($criteria['email'])) {
-            $query->whereHas('customer', function($q) use ($criteria) {
-                $q->where('email', 'LIKE', '%' . $criteria['email'] . '%');
-            });
-        }
-        
-        return $query->with(['items', 'customer'])
-            ->latest()
-            ->limit(50)
-            ->get();
     }
     
-    public function findOrderById(int $id): ?Order {
-        return Order::with('items')->find($id);
-    }
-}`,
-    correctCode: `namespace App\\Repositories;
-
-use App\\Models\\Order;
-use Illuminate\\Support\\Collection;
-
-class OrderRepository {
-    public function searchOrders(array $criteria): Collection {
-        $query = Order::query();
-        
-        if (!empty($criteria['status'])) {
-            $query->where('status', $criteria['status']);
-        }
-        
-        if (!empty($criteria['email'])) {
-            $query->whereHas('customer', function($q) use ($criteria) {
-                $q->where('email', 'LIKE', '%' . $criteria['email'] . '%');
-            });
-        }
-        
-        return $query->with(['items', 'customer'])
-            ->latest()
-            ->limit(50)
-            ->get();
-    }
-    
-    public function findOrderById(int $id): ?Order {
-        return Order::with('items')->find($id);
-    }
-}`,
-    buggyCode: `namespace App\\Repositories;
-
-class OrderRepository {
-    public function searchOrders($criteria) {
-        # Bug: Logic error in whereHas closure - missing 'use' for criteria
-        return Order::whereHas('customer', function($q) {
-            $q->where('email', $criteria['email']);
-        })->get();
-    }
-}`,
-    expectedOutput: 'Laravel Repository Class',
-    validationRule: ValidationRule.REQUIRES_SEMICOLON,
-    genericHint: 'Ensure closures have access to parent scope variables.'
-  },
-
-  // --- VUE ---
-  {
-    languageTrack: LanguageTrack.VUE,
-    difficulty: Difficulty.HARD,
-    title: 'Composable State Manager',
-    prompt: 'Implement a custom composable (useAuth) that manages a global user state and provides login/logout methods.',
-    participantCode: `import { ref, readonly } from 'vue';
-
-const user = ref(null);
-const loading = ref(false);
-
-export function useAuth() {
-    const login = async (credentials) => {
-        loading.value = true;
-        try {
-            const response = await api.post('/login', credentials);
-            user.value = response.data;
-            localStorage.setItem('token', response.token);
-        } finally {
-            loading.value = false;
-        }
-    };
-    
-    const logout = () => {
-        user.value = null;
-        localStorage.removeItem('token');
-    };
-    
-    return {
-        user: readonly(user),
-        loading: readonly(loading),
-        login,
-        logout
-    };
-}`,
-    correctCode: `import { ref, readonly } from 'vue';
-
-const user = ref(null);
-const loading = ref(false);
-
-export function useAuth() {
-    const login = async (credentials) => {
-        loading.value = true;
-        try {
-            const response = await api.post('/login', credentials);
-            user.value = response.data;
-            localStorage.setItem('token', response.token);
-        } finally {
-            loading.value = false;
-        }
-    };
-    
-    const logout = () => {
-        user.value = null;
-        localStorage.removeItem('token');
-    };
-    
-    return {
-        user: readonly(user),
-        loading: readonly(loading),
-        login,
-        logout
-    };
-}`,
-    buggyCode: `import { ref } from 'vue';
-
-export function useAuth() {
-    const user = ref(null); # Bug: Local state instead of shared module state
-    
-    return {
-        user, # Bug: Directly exposing mutable ref
-        login: (data) => { user = data; } # Bug: Missing .value
-    };
-}`,
-    expectedOutput: 'Vue Composable Pattern',
-    validationRule: ValidationRule.NORMALIZED_EXACT_MATCH,
-    genericHint: 'Check state scope (module vs function) and reactivity rules.'
-  },
-  {
-    languageTrack: LanguageTrack.VUE,
-    difficulty: Difficulty.VERY_HARD,
-    title: 'Advanced Filter Component',
-    prompt: 'Implement the logic for a component that dynamically filters a large dataset using multiple computed properties and watcher synchronization.',
-    participantCode: `<script setup>
-import { ref, computed, watch } from 'vue';
-
-const props = defineProps(['items']);
-const filter = ref({ search: '', category: 'all', sort: 'name' });
-
-const sortedItems = computed(() => {
-    return [...props.items].sort((a, b) => {
-        const key = filter.value.sort;
-        return a[key].localeCompare(b[key]);
-    });
-});
-
-const filteredResults = computed(() => {
-    return sortedItems.value.filter(item => {
-        const matchesSearch = item.name.toLowerCase().includes(
-            filter.value.search.toLowerCase()
-        );
-        const matchesCat = filter.value.category === 'all' || 
-                         item.category === filter.value.category;
-        return matchesSearch && matchesCat;
-    });
-});
-
-// Emit analytics on change
-watch(filter, (newVal) => {
-    emit('filter-changed', newVal);
-}, { deep: true });
-</script>`,
-    correctCode: `<script setup>
-import { ref, computed, watch } from 'vue';
-
-const props = defineProps(['items']);
-const filter = ref({ search: '', category: 'all', sort: 'name' });
-
-const sortedItems = computed(() => {
-    return [...props.items].sort((a, b) => {
-        const key = filter.value.sort;
-        return a[key].localeCompare(b[key]);
-    });
-});
-
-const filteredResults = computed(() => {
-    return sortedItems.value.filter(item => {
-        const matchesSearch = item.name.toLowerCase().includes(
-            filter.value.search.toLowerCase()
-        );
-        const matchesCat = filter.value.category === 'all' || 
-                         item.category === filter.value.category;
-        return matchesSearch && matchesCat;
-    });
-});
-
-// Emit analytics on change
-watch(filter, (newVal) => {
-    emit('filter-changed', newVal);
-}, { deep: true });
-</script>`,
-    buggyCode: `<script setup>
-const sortedItems = computed(() => {
-    # Bug: Directly mutating props.items
-    return props.items.sort();
-});
-
-watch(filter, () => {
-    # Bug: Missing deep: true for object observation
-    emit('change');
-});
-</script>`,
-    expectedOutput: 'Vue SFC Logic Block',
-    validationRule: ValidationRule.NORMALIZED_EXACT_MATCH,
-    genericHint: 'Verify deep observation rules and immutability when sorting.'
-  },
-
-  // --- JAVASCRIPT ---
-  {
-    languageTrack: LanguageTrack.JAVASCRIPT,
-    difficulty: Difficulty.HARD,
-    title: 'Async Multi-Source Loader',
-    prompt: 'Implement a function that fetches data from three different endpoints in parallel and merges the results into a unified dashboard object.',
-    participantCode: `async function loadDashboardData(userId) {
-    const endpoints = [
-        \`/api/profile/\${userId}\`,
-        \`/api/stats/\${userId}\`,
-        \`/api/notifications/\${userId}\`
-    ];
-    
-    try {
-        const responses = await Promise.all(
-            endpoints.map(url => fetch(url).then(res => res.json()))
-        );
-        
-        const [profile, stats, notifications] = responses;
-        
-        return {
-            id: userId,
-            summary: \`Welcome, \${profile.name}\`,
-            activePoints: stats.total || 0,
-            unreadCount: notifications.filter(n => !n.read).length,
-            lastUpdated: new Date().getTime()
-        };
-    } catch (error) {
-        console.error("Dashboard sync failed", error);
-        throw new Error("UNABLE_TO_LOAD");
-    }
-}`,
-    correctCode: `async function loadDashboardData(userId) {
-    const endpoints = [
-        \`/api/profile/\${userId}\`,
-        \`/api/stats/\${userId}\`,
-        \`/api/notifications/\${userId}\`
-    ];
-    
-    try {
-        const responses = await Promise.all(
-            endpoints.map(url => fetch(url).then(res => res.json()))
-        );
-        
-        const [profile, stats, notifications] = responses;
-        
-        return {
-            id: userId,
-            summary: \`Welcome, \${profile.name}\`,
-            activePoints: stats.total || 0,
-            unreadCount: notifications.filter(n => !n.read).length,
-            lastUpdated: new Date().getTime()
-        };
-    } catch (error) {
-        console.error("Dashboard sync failed", error);
-        throw new Error("UNABLE_TO_LOAD");
-    }
-}`,
-    buggyCode: `async function loadDashboardData(userId) {
-    # Bug: Sequential loading instead of parallel
-    const p = await fetch(\`/api/profile/\${userId}\`).json();
-    const s = await fetch(\`/api/stats/\${userId}\`).json();
-    
-    # Bug: Missing try/catch and template literal syntax
-    return {
-        points: s.total
-    };
-}`,
-    expectedOutput: 'Unified dashboard data object with aggregated notifications.',
-    validationRule: ValidationRule.NORMALIZED_EXACT_MATCH,
-    genericHint: 'Check concurrency methods and result destructuring.'
-  },
-  {
-    languageTrack: LanguageTrack.JAVASCRIPT,
-    difficulty: Difficulty.VERY_HARD,
-    title: 'Custom Event Emitter Kernel',
-    prompt: 'Implement a minimal Event Emitter class with on, off, and emit methods supporting multiple listeners per event.',
-    participantCode: `class TinyEmitter {
-    constructor() {
-        this.events = {};
-    }
-    
-    on(name, callback) {
-        if (!this.events[name]) {
-            this.events[name] = [];
-        }
-        this.events[name].push(callback);
-    }
-    
-    off(name, callback) {
-        if (!this.events[name]) return;
-        this.events[name] = this.events[name].filter(
-            fn => fn !== callback
-        );
-    }
-    
-    emit(name, ...args) {
-        if (!this.events[name]) return;
-        this.events[name].forEach(fn => {
-            fn.apply(null, args);
-        });
+    sort($authorized);
+    echo "AUTHORIZED FOR '{$requiredRole}':\\n";
+    foreach ($authorized as $name) {
+        echo "- {$name}\\n";
     }
 }
 
-const bus = new TinyEmitter();
-export default bus;`,
-    correctCode: `class TinyEmitter {
-    constructor() {
-        this.events = {};
-    }
-    
-    on(name, callback) {
-        if (!this.events[name]) {
-            this.events[name] = [];
+checkPermissions($users, 'editor');`,
+    buggyCode: `<?php
+$users = [
+    ['id' => 1, 'name' => 'Alice', 'roles' => ['editor', 'viewer'], 'active' => true],
+    ['id' => 2, 'name' => 'Bob', 'roles' => ['viewer'], 'active' => false],
+    ['id' => 3, 'name' => 'Charlie', 'roles' => ['admin', 'editor'], 'active' => true],
+];
+
+function checkPermissions($users, $requiredRole) {
+    $authorized = [];
+    foreach ($users as $user) {
+        if ($user['active']) {
+            foreach ($user['roles'] as $role) {
+                // Bug: Checking wrong role logic, missing admin fallback
+                if ($role === $requiredRole) { 
+                    $authorized[] = $user['name'];
+                    break;
+                }
+            }
         }
-        this.events[name].push(callback);
     }
     
-    off(name, callback) {
-        if (!this.events[name]) return;
-        this.events[name] = this.events[name].filter(
-            fn => fn !== callback
-        );
-    }
-    
-    emit(name, ...args) {
-        if (!this.events[name]) return;
-        this.events[name].forEach(fn => {
-            fn.apply(null, args);
-        });
+    sort($authorized);
+    echo "AUTHORIZED FOR '{$requiredRole}':\\n";
+    foreach ($authorized as $name) {
+        echo "- {$name}\\n";
     }
 }
 
-const bus = new TinyEmitter();
-export default bus;`,
-    buggyCode: `class TinyEmitter {
-    # Bug: Using a single variable instead of an array/set for listeners
-    on(name, cb) {
-        this.events[name] = cb;
+checkPermissions($users, 'editor');`,
+    correctCode: `<?php
+$users = [
+    ['id' => 1, 'name' => 'Alice', 'roles' => ['editor', 'viewer'], 'active' => true],
+    ['id' => 2, 'name' => 'Bob', 'roles' => ['viewer'], 'active' => false],
+    ['id' => 3, 'name' => 'Charlie', 'roles' => ['admin', 'editor'], 'active' => true],
+];
+
+function checkPermissions($users, $requiredRole) {
+    $authorized = [];
+    foreach ($users as $user) {
+        if ($user['active']) {
+            foreach ($user['roles'] as $role) {
+                if ($role === $requiredRole || $role === 'admin') {
+                    $authorized[] = $user['name'];
+                    break;
+                }
+            }
+        }
     }
     
-    # Bug: Missing rest parameters for emit
-    emit(name, args) {
-        this.events[name](args);
+    sort($authorized);
+    echo "AUTHORIZED FOR '{$requiredRole}':\\n";
+    foreach ($authorized as $name) {
+        echo "- {$name}\\n";
+    }
+}
+
+checkPermissions($users, 'editor');`,
+    expectedOutput: `AUTHORIZED FOR 'editor':
+- Alice
+- Charlie`,
+    validationRule: ValidationRule.NORMALIZED_EXACT_MATCH,
+    genericHint: "Check structure and logic.",
+  },
+  {
+    languageTrack: LanguageTrack.PHP_NATIVE,
+    difficulty: Difficulty.HARD,
+    title: 'Invoice Calculation Summary',
+    prompt: 'Calculate subtotals, tax, and totals for an array of invoices. Print each invoice line and the overall grand total formatted to 2 decimal places.',
+    participantCode: `<?php
+$invoices = [
+    ['id' => 'INV-001', 'items' => [['qty' => 2, 'price' => 50], ['qty' => 1, 'price' => 100]], 'tax_rate' => 0.1],
+    ['id' => 'INV-002', 'items' => [['qty' => 5, 'price' => 20]], 'tax_rate' => 0.05],
+];
+
+function processInvoices($invoices) {
+    $grandTotal = 0;
+    foreach ($invoices as $inv) {
+        $subtotal = 0;
+        foreach ($inv['items'] as $item) {
+            $subtotal += ($item['qty'] + $item['price']); // Subtle bug: addition instead of multiplication
+        }
+        $tax = $subtotal * $inv['tax_rate'];
+        $total = $subtotal + $tax;
+        $grandTotal += $total;
+        
+        echo "Invoice {$inv['id']}: Subtotal $" . number_format($subtotal, 2) . " | Total $" . number_format($total, 2) . "\\n";
+    }
+    echo "GRAND TOTAL: $" . number_format($grandTotal, 2) . "\\n";
+}
+
+processInvoices($invoices);`,
+    buggyCode: `<?php
+$invoices = [
+    ['id' => 'INV-001', 'items' => [['qty' => 2, 'price' => 50], ['qty' => 1, 'price' => 100]], 'tax_rate' => 0.1],
+    ['id' => 'INV-002', 'items' => [['qty' => 5, 'price' => 20]], 'tax_rate' => 0.05],
+];
+
+function processInvoices($invoices) {
+    $grandTotal = 0;
+    foreach ($invoices as $inv) {
+        $subtotal = 0;
+        foreach ($inv['items'] as $item) {
+            $subtotal += ($item['qty'] + $item['price']); // Subtle bug: addition instead of multiplication
+        }
+        $tax = $subtotal * $inv['tax_rate'];
+        $total = $subtotal + $tax;
+        $grandTotal += $total;
+        
+        echo "Invoice {$inv['id']}: Subtotal $" . number_format($subtotal, 2) . " | Total $" . number_format($total, 2) . "\\n";
+    }
+    echo "GRAND TOTAL: $" . number_format($grandTotal, 2) . "\\n";
+}
+
+processInvoices($invoices);`,
+    correctCode: `<?php
+$invoices = [
+    ['id' => 'INV-001', 'items' => [['qty' => 2, 'price' => 50], ['qty' => 1, 'price' => 100]], 'tax_rate' => 0.1],
+    ['id' => 'INV-002', 'items' => [['qty' => 5, 'price' => 20]], 'tax_rate' => 0.05],
+];
+
+function processInvoices($invoices) {
+    $grandTotal = 0;
+    foreach ($invoices as $inv) {
+        $subtotal = 0;
+        foreach ($inv['items'] as $item) {
+            $subtotal += ($item['qty'] * $item['price']);
+        }
+        $tax = $subtotal * $inv['tax_rate'];
+        $total = $subtotal + $tax;
+        $grandTotal += $total;
+        
+        echo "Invoice {$inv['id']}: Subtotal $" . number_format($subtotal, 2) . " | Total $" . number_format($total, 2) . "\\n";
+    }
+    echo "GRAND TOTAL: $" . number_format($grandTotal, 2) . "\\n";
+}
+
+processInvoices($invoices);`,
+    expectedOutput: `Invoice INV-001: Subtotal $200.00 | Total $220.00
+Invoice INV-002: Subtotal $100.00 | Total $105.00
+GRAND TOTAL: $325.00`,
+    validationRule: ValidationRule.NORMALIZED_EXACT_MATCH,
+    genericHint: "Check structure and logic.",
+  },
+  {
+    languageTrack: LanguageTrack.LARAVEL,
+    difficulty: Difficulty.MEDIUM,
+    title: 'Collection Style Filtering',
+    prompt: 'Implement a standalone PHP script inspired by Laravel Collections. Filter completed orders, sum their amounts, and extract high-value order IDs.',
+    participantCode: `<?php
+class Collection {
+    private $items;
+    public function __construct($items) { $this->items = $items; }
+    public static function make($items) { return new static($items); }
+    public function filter($callback) { return new static(array_filter($this->items, $callback)); }
+    public function map($callback) { return new static(array_map($callback, $this->items)); }
+    public function values() { return new static(array_values($this->items)); }
+    public function sum($key = null) {
+        return array_reduce($this->items, function($carry, $item) use ($key) {
+            return $carry + ($key ? $item[$key] : $item);
+        }, 0);
+    }
+    public function toArray() { return $this->items; }
+}
+
+$orders = [
+    ['id' => 101, 'status' => 'completed', 'amount' => 150.50],
+    ['id' => 102, 'status' => 'pending', 'amount' => 80.00],
+    ['id' => 103, 'status' => 'completed', 'amount' => 210.25],
+];
+
+$completedSum = Collection::make($orders)
+    ->filter(function($order) { return $order['status'] === 'pending'; }) // Subtle bug: filtering wrong status
+    ->sum('amount');
+
+$ids = Collection::make($orders)
+    ->filter(function($order) { return $order['amount'] > 100; })
+    ->map(function($order) { return $order['id']; })
+    ->values()
+    ->toArray();
+
+echo "COMPLETED REVENUE: $" . number_format($completedSum, 2) . "\\n";
+echo "HIGH VALUE ORDER IDs: " . implode(", ", $ids) . "\\n";`,
+    buggyCode: `<?php
+class Collection {
+    private $items;
+    public function __construct($items) { $this->items = $items; }
+    public static function make($items) { return new static($items); }
+    public function filter($callback) { return new static(array_filter($this->items, $callback)); }
+    public function map($callback) { return new static(array_map($callback, $this->items)); }
+    public function values() { return new static(array_values($this->items)); }
+    public function sum($key = null) {
+        return array_reduce($this->items, function($carry, $item) use ($key) {
+            return $carry + ($key ? $item[$key] : $item);
+        }, 0);
+    }
+    public function toArray() { return $this->items; }
+}
+
+$orders = [
+    ['id' => 101, 'status' => 'completed', 'amount' => 150.50],
+    ['id' => 102, 'status' => 'pending', 'amount' => 80.00],
+    ['id' => 103, 'status' => 'completed', 'amount' => 210.25],
+];
+
+$completedSum = Collection::make($orders)
+    ->filter(function($order) { return $order['status'] === 'pending'; }) // Subtle bug: filtering wrong status
+    ->sum('amount');
+
+$ids = Collection::make($orders)
+    ->filter(function($order) { return $order['amount'] > 100; })
+    ->map(function($order) { return $order['id']; })
+    ->values()
+    ->toArray();
+
+echo "COMPLETED REVENUE: $" . number_format($completedSum, 2) . "\\n";
+echo "HIGH VALUE ORDER IDs: " . implode(", ", $ids) . "\\n";`,
+    correctCode: `<?php
+class Collection {
+    private $items;
+    public function __construct($items) { $this->items = $items; }
+    public static function make($items) { return new static($items); }
+    public function filter($callback) { return new static(array_filter($this->items, $callback)); }
+    public function map($callback) { return new static(array_map($callback, $this->items)); }
+    public function values() { return new static(array_values($this->items)); }
+    public function sum($key = null) {
+        return array_reduce($this->items, function($carry, $item) use ($key) {
+            return $carry + ($key ? $item[$key] : $item);
+        }, 0);
+    }
+    public function toArray() { return $this->items; }
+}
+
+$orders = [
+    ['id' => 101, 'status' => 'completed', 'amount' => 150.50],
+    ['id' => 102, 'status' => 'pending', 'amount' => 80.00],
+    ['id' => 103, 'status' => 'completed', 'amount' => 210.25],
+];
+
+$completedSum = Collection::make($orders)
+    ->filter(function($order) { return $order['status'] === 'completed'; })
+    ->sum('amount');
+
+$ids = Collection::make($orders)
+    ->filter(function($order) { return $order['amount'] > 100; })
+    ->map(function($order) { return $order['id']; })
+    ->values()
+    ->toArray();
+
+echo "COMPLETED REVENUE: $" . number_format($completedSum, 2) . "\\n";
+echo "HIGH VALUE ORDER IDs: " . implode(", ", $ids) . "\\n";`,
+    expectedOutput: `COMPLETED REVENUE: $360.75
+HIGH VALUE ORDER IDs: 101, 103`,
+    validationRule: ValidationRule.NORMALIZED_EXACT_MATCH,
+    genericHint: "Check structure and logic.",
+  },
+  {
+    languageTrack: LanguageTrack.LARAVEL,
+    difficulty: Difficulty.HARD,
+    title: 'Controller Validation Simulation',
+    prompt: 'Simulate Laravel request validation logic natively. Support "required", "email", and "min" rules.',
+    participantCode: `<?php
+class Validator {
+    public static function validate($request, $rules) {
+        $errors = [];
+        foreach ($rules as $field => $ruleString) {
+            $rulesArray = explode('|', $ruleString);
+            $value = isset($request[$field]) ? $request[$field] : null;
+            
+            foreach ($rulesArray as $rule) {
+                if ($rule === 'required' && empty($value)) {
+                    $errors[$field][] = "The {$field} field is required.";
+                }
+                if ($rule === 'email' && !empty($value) && filter_var($value, FILTER_VALIDATE_EMAIL)) { // Subtle Bug: missing '!' operator
+                    $errors[$field][] = "The {$field} must be a valid email address.";
+                }
+                if (strpos($rule, 'min:') === 0 && !empty($value)) {
+                    $min = (int) substr($rule, 4);
+                    if (strlen($value) < $min) {
+                        $errors[$field][] = "The {$field} must be at least {$min} characters.";
+                    }
+                }
+            }
+        }
+        return $errors;
+    }
+}
+
+$requestData = [
+    'email' => 'invalid-email',
+    'password' => '123'
+];
+
+$rules = [
+    'email' => 'required|email',
+    'password' => 'required|min:8',
+    'name' => 'required'
+];
+
+$errors = Validator::validate($requestData, $rules);
+
+if (empty($errors)) {
+    echo "VALIDATION PASSED\\n";
+} else {
+    echo "VALIDATION FAILED:\\n";
+    foreach ($errors as $field => $messages) {
+        foreach ($messages as $message) {
+            echo "- {$message}\\n";
+        }
     }
 }`,
-    expectedOutput: 'Exported Emitter Instance',
+    buggyCode: `<?php
+class Validator {
+    public static function validate($request, $rules) {
+        $errors = [];
+        foreach ($rules as $field => $ruleString) {
+            $rulesArray = explode('|', $ruleString);
+            $value = isset($request[$field]) ? $request[$field] : null;
+            
+            foreach ($rulesArray as $rule) {
+                if ($rule === 'required' && empty($value)) {
+                    $errors[$field][] = "The {$field} field is required.";
+                }
+                if ($rule === 'email' && !empty($value) && filter_var($value, FILTER_VALIDATE_EMAIL)) { // Subtle Bug: missing '!' operator
+                    $errors[$field][] = "The {$field} must be a valid email address.";
+                }
+                if (strpos($rule, 'min:') === 0 && !empty($value)) {
+                    $min = (int) substr($rule, 4);
+                    if (strlen($value) < $min) {
+                        $errors[$field][] = "The {$field} must be at least {$min} characters.";
+                    }
+                }
+            }
+        }
+        return $errors;
+    }
+}
+
+$requestData = [
+    'email' => 'invalid-email',
+    'password' => '123'
+];
+
+$rules = [
+    'email' => 'required|email',
+    'password' => 'required|min:8',
+    'name' => 'required'
+];
+
+$errors = Validator::validate($requestData, $rules);
+
+if (empty($errors)) {
+    echo "VALIDATION PASSED\\n";
+} else {
+    echo "VALIDATION FAILED:\\n";
+    foreach ($errors as $field => $messages) {
+        foreach ($messages as $message) {
+            echo "- {$message}\\n";
+        }
+    }
+}`,
+    correctCode: `<?php
+class Validator {
+    public static function validate($request, $rules) {
+        $errors = [];
+        foreach ($rules as $field => $ruleString) {
+            $rulesArray = explode('|', $ruleString);
+            $value = isset($request[$field]) ? $request[$field] : null;
+            
+            foreach ($rulesArray as $rule) {
+                if ($rule === 'required' && empty($value)) {
+                    $errors[$field][] = "The {$field} field is required.";
+                }
+                if ($rule === 'email' && !empty($value) && !filter_var($value, FILTER_VALIDATE_EMAIL)) {
+                    $errors[$field][] = "The {$field} must be a valid email address.";
+                }
+                if (strpos($rule, 'min:') === 0 && !empty($value)) {
+                    $min = (int) substr($rule, 4);
+                    if (strlen($value) < $min) {
+                        $errors[$field][] = "The {$field} must be at least {$min} characters.";
+                    }
+                }
+            }
+        }
+        return $errors;
+    }
+}
+
+$requestData = [
+    'email' => 'invalid-email',
+    'password' => '123'
+];
+
+$rules = [
+    'email' => 'required|email',
+    'password' => 'required|min:8',
+    'name' => 'required'
+];
+
+$errors = Validator::validate($requestData, $rules);
+
+if (empty($errors)) {
+    echo "VALIDATION PASSED\\n";
+} else {
+    echo "VALIDATION FAILED:\\n";
+    foreach ($errors as $field => $messages) {
+        foreach ($messages as $message) {
+            echo "- {$message}\\n";
+        }
+    }
+}`,
+    expectedOutput: `VALIDATION FAILED:
+- The email must be a valid email address.
+- The password must be at least 8 characters.
+- The name field is required.`,
     validationRule: ValidationRule.NORMALIZED_EXACT_MATCH,
-    genericHint: 'Check listener storage structure and argument propagation.'
+    genericHint: "Check structure and logic.",
+  },
+  {
+    languageTrack: LanguageTrack.JAVASCRIPT,
+    difficulty: Difficulty.MEDIUM,
+    title: 'Transaction Summary',
+    prompt: 'Summarize a list of transactions. Calculate total credits, total debits, and net balance, ignoring failed transactions.',
+    participantCode: `const transactions = [
+    { txId: "TX1001", amount: 450, type: "credit", status: "success" },
+    { txId: "TX1002", amount: -50, type: "debit", status: "failed" },
+    { txId: "TX1003", amount: 1200, type: "credit", status: "success" },
+    { txId: "TX1004", amount: -300, type: "debit", status: "success" }
+];
+
+function summarizeTransactions(txs) {
+    const summary = {
+        totalCredits: 0,
+        totalDebits: 0,
+        failedCount: 0,
+        netBalance: 0
+    };
+
+    txs.forEach(tx => {
+        if (tx.status === "failed") {
+            summary.failedCount++;
+            return;
+        }
+
+        if (tx.type === "credit") {
+            summary.totalCredits += tx.amount;
+        } else if (tx.type === "debit") {
+            summary.totalDebits -= Math.abs(tx.amount); // Bug: Debits should be added to totalDebits tracker
+        }
+    });
+
+    summary.netBalance = summary.totalCredits - summary.totalDebits;
+
+    console.log(\`TOTAL CREDITS: $\${summary.totalCredits}\`);
+    console.log(\`TOTAL DEBITS: $\${summary.totalDebits}\`);
+    console.log(\`NET BALANCE: $\${summary.netBalance}\`);
+    console.log(\`FAILED TRANSACTIONS: \${summary.failedCount}\`);
+}
+
+summarizeTransactions(transactions);`,
+    buggyCode: `const transactions = [
+    { txId: "TX1001", amount: 450, type: "credit", status: "success" },
+    { txId: "TX1002", amount: -50, type: "debit", status: "failed" },
+    { txId: "TX1003", amount: 1200, type: "credit", status: "success" },
+    { txId: "TX1004", amount: -300, type: "debit", status: "success" }
+];
+
+function summarizeTransactions(txs) {
+    const summary = {
+        totalCredits: 0,
+        totalDebits: 0,
+        failedCount: 0,
+        netBalance: 0
+    };
+
+    txs.forEach(tx => {
+        if (tx.status === "failed") {
+            summary.failedCount++;
+            return;
+        }
+
+        if (tx.type === "credit") {
+            summary.totalCredits += tx.amount;
+        } else if (tx.type === "debit") {
+            summary.totalDebits -= Math.abs(tx.amount); // Bug: Debits should be added to totalDebits tracker
+        }
+    });
+
+    summary.netBalance = summary.totalCredits - summary.totalDebits;
+
+    console.log(\`TOTAL CREDITS: $\${summary.totalCredits}\`);
+    console.log(\`TOTAL DEBITS: $\${summary.totalDebits}\`);
+    console.log(\`NET BALANCE: $\${summary.netBalance}\`);
+    console.log(\`FAILED TRANSACTIONS: \${summary.failedCount}\`);
+}
+
+summarizeTransactions(transactions);`,
+    correctCode: `const transactions = [
+    { txId: "TX1001", amount: 450, type: "credit", status: "success" },
+    { txId: "TX1002", amount: -50, type: "debit", status: "failed" },
+    { txId: "TX1003", amount: 1200, type: "credit", status: "success" },
+    { txId: "TX1004", amount: -300, type: "debit", status: "success" }
+];
+
+function summarizeTransactions(txs) {
+    const summary = {
+        totalCredits: 0,
+        totalDebits: 0,
+        failedCount: 0,
+        netBalance: 0
+    };
+
+    txs.forEach(tx => {
+        if (tx.status === "failed") {
+            summary.failedCount++;
+            return;
+        }
+
+        if (tx.type === "credit") {
+            summary.totalCredits += tx.amount;
+        } else if (tx.type === "debit") {
+            summary.totalDebits += Math.abs(tx.amount);
+        }
+    });
+
+    summary.netBalance = summary.totalCredits - summary.totalDebits;
+
+    console.log(\`TOTAL CREDITS: $\${summary.totalCredits}\`);
+    console.log(\`TOTAL DEBITS: $\${summary.totalDebits}\`);
+    console.log(\`NET BALANCE: $\${summary.netBalance}\`);
+    console.log(\`FAILED TRANSACTIONS: \${summary.failedCount}\`);
+}
+
+summarizeTransactions(transactions);`,
+    expectedOutput: `TOTAL CREDITS: $1650
+TOTAL DEBITS: $300
+NET BALANCE: $1350
+FAILED TRANSACTIONS: 1`,
+    validationRule: ValidationRule.NORMALIZED_EXACT_MATCH,
+    genericHint: "Check structure and logic.",
+  },
+  {
+    languageTrack: LanguageTrack.JAVASCRIPT,
+    difficulty: Difficulty.HARD,
+    title: 'Grouped Inventory Report',
+    prompt: 'Generate an inventory report. Group items by category, calculate total quantity per category, and list sorted items.',
+    participantCode: `const inventory = [
+    { category: "Electronics", item: "Laptop", qty: 45 },
+    { category: "Furniture", item: "Desk", qty: 12 },
+    { category: "Electronics", item: "Mouse", qty: 150 },
+    { category: "Supplies", item: "Paper", qty: 500 },
+    { category: "Furniture", item: "Chair", qty: 24 }
+];
+
+function generateInventoryReport(items) {
+    const grouped = items.reduce((acc, current) => {
+        if (!acc[current.category]) {
+            acc[current.category] = [];
+        }
+        acc[current.category].push(current);
+        return acc;
+    }, {});
+
+    const categories = Object.keys(grouped).sort();
+
+    categories.forEach(cat => {
+        const totalQty = grouped[cat].reduce((sum, i) => sum + i.qty, 0);
+        console.log(\`[\${cat.toUpperCase()}] Total Qty: \${totalQty}\`);
+        
+        const sortedItems = grouped[cat].sort((a, b) => b.item.localeCompare(a.item)); // Bug: sorting descending
+        sortedItems.forEach(i => {
+            console.log(\`  - \${i.item} (\${i.qty})\`);
+        });
+    });
+}
+
+generateInventoryReport(inventory);`,
+    buggyCode: `const inventory = [
+    { category: "Electronics", item: "Laptop", qty: 45 },
+    { category: "Furniture", item: "Desk", qty: 12 },
+    { category: "Electronics", item: "Mouse", qty: 150 },
+    { category: "Supplies", item: "Paper", qty: 500 },
+    { category: "Furniture", item: "Chair", qty: 24 }
+];
+
+function generateInventoryReport(items) {
+    const grouped = items.reduce((acc, current) => {
+        if (!acc[current.category]) {
+            acc[current.category] = [];
+        }
+        acc[current.category].push(current);
+        return acc;
+    }, {});
+
+    const categories = Object.keys(grouped).sort();
+
+    categories.forEach(cat => {
+        const totalQty = grouped[cat].reduce((sum, i) => sum + i.qty, 0);
+        console.log(\`[\${cat.toUpperCase()}] Total Qty: \${totalQty}\`);
+        
+        const sortedItems = grouped[cat].sort((a, b) => b.item.localeCompare(a.item)); // Bug: sorting descending
+        sortedItems.forEach(i => {
+            console.log(\`  - \${i.item} (\${i.qty})\`);
+        });
+    });
+}
+
+generateInventoryReport(inventory);`,
+    correctCode: `const inventory = [
+    { category: "Electronics", item: "Laptop", qty: 45 },
+    { category: "Furniture", item: "Desk", qty: 12 },
+    { category: "Electronics", item: "Mouse", qty: 150 },
+    { category: "Supplies", item: "Paper", qty: 500 },
+    { category: "Furniture", item: "Chair", qty: 24 }
+];
+
+function generateInventoryReport(items) {
+    const grouped = items.reduce((acc, current) => {
+        if (!acc[current.category]) {
+            acc[current.category] = [];
+        }
+        acc[current.category].push(current);
+        return acc;
+    }, {});
+
+    const categories = Object.keys(grouped).sort();
+
+    categories.forEach(cat => {
+        const totalQty = grouped[cat].reduce((sum, i) => sum + i.qty, 0);
+        console.log(\`[\${cat.toUpperCase()}] Total Qty: \${totalQty}\`);
+        
+        const sortedItems = grouped[cat].sort((a, b) => a.item.localeCompare(b.item));
+        sortedItems.forEach(i => {
+            console.log(\`  - \${i.item} (\${i.qty})\`);
+        });
+    });
+}
+
+generateInventoryReport(inventory);`,
+    expectedOutput: `[ELECTRONICS] Total Qty: 195
+  - Laptop (45)
+  - Mouse (150)
+[FURNITURE] Total Qty: 36
+  - Chair (24)
+  - Desk (12)
+[SUPPLIES] Total Qty: 500
+  - Paper (500)`,
+    validationRule: ValidationRule.NORMALIZED_EXACT_MATCH,
+    genericHint: "Check structure and logic.",
+  },
+  {
+    languageTrack: LanguageTrack.VUE,
+    difficulty: Difficulty.MEDIUM,
+    title: 'Computed Property Simulation',
+    prompt: 'Simulate a Vue computed property using standalone JS. Filter active users based on a reactive search query.',
+    participantCode: `const reactiveState = {
+    _data: {
+        users: [
+            { name: "John", active: true },
+            { name: "Jane", active: false },
+            { name: "Doe", active: true }
+        ],
+        searchQuery: "j"
+    },
+    get users() { return this._data.users; },
+    get searchQuery() { return this._data.searchQuery; },
+    set searchQuery(val) { this._data.searchQuery = val; }
+};
+
+function computedActiveFilteredUsers() {
+    const query = reactiveState.searchQuery.toLowerCase();
+    return reactiveState.users.filter(user => {
+        return user.name.toLowerCase().includes(query); // Bug: Not checking user.active
+    });
+}
+
+console.log("INITIAL FILTERED USERS:");
+computedActiveFilteredUsers().forEach(u => console.log(\`- \${u.name}\`));
+
+reactiveState.searchQuery = "do";
+
+console.log("\\nAFTER SEARCH UPDATE ('do'):");
+computedActiveFilteredUsers().forEach(u => console.log(\`- \${u.name}\`));`,
+    buggyCode: `const reactiveState = {
+    _data: {
+        users: [
+            { name: "John", active: true },
+            { name: "Jane", active: false },
+            { name: "Doe", active: true }
+        ],
+        searchQuery: "j"
+    },
+    get users() { return this._data.users; },
+    get searchQuery() { return this._data.searchQuery; },
+    set searchQuery(val) { this._data.searchQuery = val; }
+};
+
+function computedActiveFilteredUsers() {
+    const query = reactiveState.searchQuery.toLowerCase();
+    return reactiveState.users.filter(user => {
+        return user.name.toLowerCase().includes(query); // Bug: Not checking user.active
+    });
+}
+
+console.log("INITIAL FILTERED USERS:");
+computedActiveFilteredUsers().forEach(u => console.log(\`- \${u.name}\`));
+
+reactiveState.searchQuery = "do";
+
+console.log("\\nAFTER SEARCH UPDATE ('do'):");
+computedActiveFilteredUsers().forEach(u => console.log(\`- \${u.name}\`));`,
+    correctCode: `const reactiveState = {
+    _data: {
+        users: [
+            { name: "John", active: true },
+            { name: "Jane", active: false },
+            { name: "Doe", active: true }
+        ],
+        searchQuery: "j"
+    },
+    get users() { return this._data.users; },
+    get searchQuery() { return this._data.searchQuery; },
+    set searchQuery(val) { this._data.searchQuery = val; }
+};
+
+function computedActiveFilteredUsers() {
+    const query = reactiveState.searchQuery.toLowerCase();
+    return reactiveState.users.filter(user => {
+        return user.active && user.name.toLowerCase().includes(query);
+    });
+}
+
+console.log("INITIAL FILTERED USERS:");
+computedActiveFilteredUsers().forEach(u => console.log(\`- \${u.name}\`));
+
+reactiveState.searchQuery = "do";
+
+console.log("\\nAFTER SEARCH UPDATE ('do'):");
+computedActiveFilteredUsers().forEach(u => console.log(\`- \${u.name}\`));`,
+    expectedOutput: `INITIAL FILTERED USERS:
+- John
+
+AFTER SEARCH UPDATE ('do'):
+- Doe`,
+    validationRule: ValidationRule.NORMALIZED_EXACT_MATCH,
+    genericHint: "Check structure and logic.",
+  },
+  {
+    languageTrack: LanguageTrack.VUE,
+    difficulty: Difficulty.HARD,
+    title: 'Reactive Style Prop Processing',
+    prompt: 'Implement a standalone JS component with props and data to calculate discounts and render a list of products.',
+    participantCode: `function defineComponent(options) {
+    return {
+        props: options.props || {},
+        data: options.data ? options.data() : {},
+        render() {
+            const mappedData = this.data.items.map(item => {
+                const isDiscounted = item.price > this.props.discountThreshold;
+                const finalPrice = isDiscounted ? item.price * 1.9 : item.price; // Bug: Markup instead of discount
+                return \`\${item.name}: $\${finalPrice.toFixed(2)}\${isDiscounted ? ' (Sale)' : ''}\`;
+            });
+            
+            console.log(\`--- \${this.props.title} ---\`);
+            mappedData.forEach(text => console.log(text));
+        }
+    };
+}
+
+const ProductList = defineComponent({
+    props: {
+        title: "Winter Tech Sale",
+        discountThreshold: 100
+    },
+    data() {
+        return {
+            items: [
+                { name: "Keyboard", price: 45.00 },
+                { name: "Monitor", price: 299.99 },
+                { name: "Mouse", price: 85.50 },
+                { name: "Headphones", price: 150.00 }
+            ]
+        };
+    }
+});
+
+ProductList.render();`,
+    buggyCode: `function defineComponent(options) {
+    return {
+        props: options.props || {},
+        data: options.data ? options.data() : {},
+        render() {
+            const mappedData = this.data.items.map(item => {
+                const isDiscounted = item.price > this.props.discountThreshold;
+                const finalPrice = isDiscounted ? item.price * 1.9 : item.price; // Bug: Markup instead of discount
+                return \`\${item.name}: $\${finalPrice.toFixed(2)}\${isDiscounted ? ' (Sale)' : ''}\`;
+            });
+            
+            console.log(\`--- \${this.props.title} ---\`);
+            mappedData.forEach(text => console.log(text));
+        }
+    };
+}
+
+const ProductList = defineComponent({
+    props: {
+        title: "Winter Tech Sale",
+        discountThreshold: 100
+    },
+    data() {
+        return {
+            items: [
+                { name: "Keyboard", price: 45.00 },
+                { name: "Monitor", price: 299.99 },
+                { name: "Mouse", price: 85.50 },
+                { name: "Headphones", price: 150.00 }
+            ]
+        };
+    }
+});
+
+ProductList.render();`,
+    correctCode: `function defineComponent(options) {
+    return {
+        props: options.props || {},
+        data: options.data ? options.data() : {},
+        render() {
+            const mappedData = this.data.items.map(item => {
+                const isDiscounted = item.price > this.props.discountThreshold;
+                const finalPrice = isDiscounted ? item.price * 0.9 : item.price;
+                return \`\${item.name}: $\${finalPrice.toFixed(2)}\${isDiscounted ? ' (Sale)' : ''}\`;
+            });
+            
+            console.log(\`--- \${this.props.title} ---\`);
+            mappedData.forEach(text => console.log(text));
+        }
+    };
+}
+
+const ProductList = defineComponent({
+    props: {
+        title: "Winter Tech Sale",
+        discountThreshold: 100
+    },
+    data() {
+        return {
+            items: [
+                { name: "Keyboard", price: 45.00 },
+                { name: "Monitor", price: 299.99 },
+                { name: "Mouse", price: 85.50 },
+                { name: "Headphones", price: 150.00 }
+            ]
+        };
+    }
+});
+
+ProductList.render();`,
+    expectedOutput: `--- Winter Tech Sale ---
+Keyboard: $45.00
+Monitor: $269.99 (Sale)
+Mouse: $85.50
+Headphones: $135.00 (Sale)`,
+    validationRule: ValidationRule.NORMALIZED_EXACT_MATCH,
+    genericHint: "Check structure and logic.",
   }
 ];

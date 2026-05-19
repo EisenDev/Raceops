@@ -48,26 +48,31 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Elegant Typography - No aggressive bold or caps */
+/* Base Headings */
 h1, h2, h3, h4, h5, h6 {
   letter-spacing: -0.01em;
   font-weight: 600;
-  color: #FFFFFF;
+  color: #FFFFFF; /* Default for dark mode */
+}
+
+/* FORCE BLACK TEXT ON IVORY CARDS - High Specificity */
+div.ivory-card, 
+div.ivory-card h1, 
+div.ivory-card h2, 
+div.ivory-card h3, 
+div.ivory-card h4, 
+div.ivory-card h5, 
+div.ivory-card h6, 
+div.ivory-card p, 
+div.ivory-card span,
+div.ivory-card div {
+  color: #1A1A1A !important;
 }
 
 .text-label {
   font-weight: 500;
   font-size: 0.75rem;
   color: #808080;
-}
-
-.ivory-card {
-  background-color: #F5F2E8;
-  color: #1A1A1A;
-}
-
-.ivory-card h1, .ivory-card h2, .ivory-card h3, .ivory-card p {
-  color: #1A1A1A;
 }
 
 /* Custom scrollbar */

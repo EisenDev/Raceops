@@ -7,17 +7,18 @@ import {
   Gamepad2, 
   Users, 
   Trophy, 
-  History, 
+  History as HistoryIcon, 
   UserCog, 
   Settings,
   LogOut,
   ExternalLink,
   Terminal,
-  Target,
-  Circle
+  Calendar
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { logout } from '@/lib/actions/auth';
+import { useEffect, useState } from 'react';
+import { getHistoryYears } from '@/lib/actions/history';
 
 const navItems = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -25,7 +26,7 @@ const navItems = [
   { label: 'Teams', href: '/teams', icon: Users },
   { label: 'Standings', href: '/scores', icon: Trophy },
   { label: 'Code Runner', href: '/code-runner', icon: Terminal },
-  { label: 'Edit Requests', href: '/edit-requests', icon: History },
+  { label: 'Edit Requests', href: '/edit-requests', icon: HistoryIcon },
 ];
 
 const adminItems = [
@@ -42,6 +43,11 @@ interface DesktopSidebarProps {
 
 export function DesktopSidebar({ user }: DesktopSidebarProps) {
   const pathname = usePathname();
+  const [historyYears, setHistoryYears] = useState<number[]>([]);
+
+  useEffect(() => {
+    getHistoryYears().then(setHistoryYears);
+  }, []);
 
   return (
     <aside className="fixed inset-y-0 left-0 hidden w-64 flex-col border-r border-white/5 bg-[#0D0D0D] md:flex z-50">
@@ -75,6 +81,40 @@ export function DesktopSidebar({ user }: DesktopSidebarProps) {
             );
           })}
         </div>
+
+        {/* Dynamic History Section */}
+        {historyYears.length > 0 && (
+          <div className="mt-8 px-4">
+            <div className="flex items-center gap-2 mb-4 opacity-40">
+               <HistoryIcon size={12} className="text-white" />
+               <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white">History</span>
+            </div>
+            <div className="space-y-1">
+              {historyYears.map((year) => {
+                const href = `/history/${year}`;
+                const isActive = pathname === href;
+                return (
+                  <Link
+                    key={year}
+                    href={href}
+                    className={cn(
+                      "group flex items-center gap-3 rounded-lg px-4 py-2 text-xs font-medium transition-all duration-200",
+                      isActive 
+                        ? "bg-white/5 text-white border-l-2 border-accent rounded-l-none" 
+                        : "text-muted-foreground hover:text-white"
+                    )}
+                  >
+                    <Calendar size={14} className={cn(
+                      "transition-colors",
+                      isActive ? "text-accent" : "group-hover:text-white/40"
+                    )} />
+                    <span>Year {year}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {user?.role === 'ADMIN' && (
           <div className="mt-8 pt-8 border-t border-white/5 space-y-1">

@@ -14,6 +14,9 @@ import Link from 'next/link';
 export const dynamic = 'force-dynamic';
 
 export default async function DashboardPage() {
+  const currentYearStr = await getSetting('currentYear') || '2026';
+  const currentYear = parseInt(currentYearStr, 10);
+
   const [
     teamCount, 
     gameCount, 
@@ -21,12 +24,19 @@ export default async function DashboardPage() {
     rawTeams,
     scoresLocked
   ] = await Promise.all([
-    db.team.count(),
-    db.game.count(),
-    db.editRequest.count({ where: { status: 'PENDING' } }),
+    db.team.count({ where: { eventYear: currentYear } }),
+    db.game.count({ where: { eventYear: currentYear } }),
+    db.editRequest.count({ 
+      where: { 
+        status: 'PENDING',
+        team: { eventYear: currentYear }
+      } 
+    }),
     db.team.findMany({
+      where: { eventYear: currentYear },
       include: {
         gameScores: {
+          where: { eventYear: currentYear },
           select: { totalPoints: true }
         }
       }
@@ -128,7 +138,7 @@ export default async function DashboardPage() {
                
                <Link href="/api/export/scores" download className="block">
                   <Button variant="secondary" className="w-full h-12 text-xs">
-                     Export results
+                     Export Excel Results
                   </Button>
                </Link>
             </div>

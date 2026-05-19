@@ -8,7 +8,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { getCurrentUser } from '@/lib/session';
 import { AddGameModal } from '@/components/modules/games/add-game-modal';
 import { EditGameModal } from '@/components/modules/games/edit-game-modal';
-import { isScoresLocked } from '@/lib/actions/settings';
+import { getSetting, isScoresLocked } from '@/lib/actions/settings';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,8 +16,11 @@ export default async function GamesPage() {
   const user = await getCurrentUser();
   const isAdmin = user?.role === 'ADMIN';
   const isLocked = await isScoresLocked();
+  const currentYearStr = await getSetting('currentYear') || '2026';
+  const currentYear = parseInt(currentYearStr, 10);
 
   const games = await db.game.findMany({
+    where: { eventYear: currentYear },
     orderBy: { createdAt: 'desc' },
     include: {
       _count: {

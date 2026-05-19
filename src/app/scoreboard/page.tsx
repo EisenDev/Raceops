@@ -11,10 +11,15 @@ import { formatSeconds } from '@/lib/utils';
 export const dynamic = 'force-dynamic';
 
 export default async function PublicScorePage() {
+  const currentYearStr = await getSetting('currentYear') || '2026';
+  const currentYear = parseInt(currentYearStr, 10);
+
   const [rawTeams, scoresLocked] = await Promise.all([
     db.team.findMany({
+      where: { eventYear: currentYear },
       include: {
         gameScores: {
+          where: { eventYear: currentYear },
           select: { totalPoints: true }
         }
       }
@@ -85,61 +90,40 @@ export default async function PublicScorePage() {
               >
                 <div className="flex flex-col md:flex-row items-center justify-between px-10 py-6 gap-8 relative z-10">
                   <div className="flex items-center gap-10 w-full md:w-auto">
-                    <div className="flex items-center gap-4">
-                       <span className={cn(
-                         "text-5xl font-semibold tabular-nums tracking-tighter",
-                         i === 0 ? "text-neutral-900" : "text-white"
-                       )}>
-                         {i + 1}
-                       </span>
+                  <div className="flex items-center gap-4">
+                     <span className={cn(
+                       "text-5xl font-semibold tabular-nums tracking-tighter"
+                     )} style={i === 0 ? { color: '#1A1A1A' } : { color: 'white' }}>
+                       {i + 1}
+                     </span>
+                  </div>
+
+                  <div className="flex items-center gap-6">
+                    <div 
+                      className="w-1 h-10 rounded-full shadow-sm"
+                      style={{ backgroundColor: team.color || '#C5A059' }} 
+                    />
+                    <div className="space-y-0.5">
+                      <p className="text-xs font-medium" style={i === 0 ? { color: '#1A1A1A', opacity: 0.6 } : { color: 'rgba(255,255,255,0.6)' }}>Team</p>
+                      <h2 className="text-3xl font-semibold tracking-tight" style={i === 0 ? { color: '#1A1A1A' } : { color: 'white' }}>{team.name}</h2>
                     </div>
-                    
-                    <div className="flex items-center gap-6">
-                      <div 
-                        className={cn(
-                          "w-1 h-10 rounded-full",
-                          i === 0 ? "bg-black/10" : ""
-                        )}
-                        style={{ backgroundColor: i === 0 ? undefined : (team.color || '#C5A059') }} 
-                      />
-                      <div className="space-y-0.5">
-                        <p className={cn(
-                          "text-xs font-medium",
-                          i === 0 ? "text-neutral-500" : "text-muted-foreground opacity-60"
-                        )}>Team</p>
-                        <h2 className={cn(
-                          "text-3xl font-semibold tracking-tight",
-                          i === 0 ? "text-neutral-900" : "text-white"
-                        )}>{team.name}</h2>
-                      </div>
-                    </div>
+                  </div>
                   </div>
 
                   <div className="flex items-center justify-between md:justify-end gap-16 w-full md:w-auto border-t md:border-t-0 border-black/5 pt-6 md:pt-0">
-                    <div className="space-y-0.5 text-center md:text-right">
-                       <p className={cn(
-                         "text-xs font-medium",
-                         i === 0 ? "text-neutral-500" : "text-muted-foreground opacity-60"
-                       )}>Progress</p>
-                       <p className={cn(
-                         "text-lg font-semibold",
-                         i === 0 ? "text-neutral-800" : "text-white/80"
-                       )}>{team.completedGames} Games</p>
-                    </div>
-                    
-                    <div className="space-y-0.5 text-right">
-                      <p className={cn(
-                         "text-xs font-medium",
-                         i === 0 ? "text-neutral-500" : "text-muted-foreground opacity-60"
-                       )}>Total Time</p>
-                      <div className="flex items-baseline gap-3">
-                         <span className={cn(
-                           "text-5xl font-semibold tabular-nums tracking-tighter",
-                           i === 0 ? "text-neutral-900" : "text-white"
-                         )}>{formatSeconds(team.gameTotal)}</span>
-                      </div>
+                  <div className="space-y-0.5 text-center md:text-right">
+                     <p className="text-xs font-medium" style={i === 0 ? { color: '#1A1A1A', opacity: 0.6 } : { color: 'rgba(255,255,255,0.6)' }}>Progress</p>
+                     <p className="text-lg font-semibold" style={i === 0 ? { color: '#1A1A1A' } : { color: 'rgba(255,255,255,0.8)' }}>{team.completedGames} Games</p>
+                  </div>
+
+                  <div className="space-y-0.5 text-right">
+                    <p className="text-xs font-medium" style={i === 0 ? { color: '#1A1A1A', opacity: 0.6 } : { color: 'rgba(255,255,255,0.6)' }}>Total Time</p>
+                    <div className="flex items-baseline gap-3">
+                       <span className="text-5xl font-semibold tabular-nums tracking-tighter" style={i === 0 ? { color: '#1A1A1A' } : { color: 'white' }}>{formatSeconds(team.gameTotal)}</span>
                     </div>
                   </div>
+                  </div>
+
                 </div>
               </Card>
             ))}

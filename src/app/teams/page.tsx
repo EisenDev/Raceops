@@ -9,7 +9,7 @@ import { AddTeamModal } from '@/components/modules/teams/add-team-modal';
 import { EditTeamModal } from '@/components/modules/teams/edit-team-modal';
 import { AddMemberModal } from '@/components/modules/teams/add-member-modal';
 import { DeleteMemberButton } from '@/components/modules/teams/delete-member-button';
-import { isScoresLocked } from '@/lib/actions/settings';
+import { getSetting, isScoresLocked } from '@/lib/actions/settings';
 import { cn } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
@@ -18,9 +18,12 @@ export default async function TeamsPage() {
   const user = await getCurrentUser();
   const isAdmin = user?.role === 'ADMIN';
   const isLocked = await isScoresLocked();
+  const currentYearStr = await getSetting('currentYear') || '2026';
+  const currentYear = parseInt(currentYearStr, 10);
 
   const [teams, facilitators] = await Promise.all([
     db.team.findMany({
+      where: { eventYear: currentYear },
       orderBy: { name: 'asc' },
       include: {
         members: {

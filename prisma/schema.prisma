@@ -102,6 +102,7 @@ model Team {
   totalScore   Int           @default(0)
   techOpsScore Int           @default(0)
   bountyScore  Int           @default(0)
+  eventYear    Int           @default(2026)
   assignedFacilitatorId String?
   assignedFacilitator   User?   @relation("AssignedFacilitator", fields: [assignedFacilitatorId], references: [id])
   members      TeamMember[]
@@ -131,6 +132,7 @@ model Game {
   name       String
   mechanics  String?
   maxPoints  Int         @default(100)
+  eventYear  Int         @default(2026)
   status     GameStatus  @default(DRAFT)
   gameScores GameScore[]
   createdAt  DateTime    @default(now())
@@ -144,6 +146,7 @@ model GameScore {
   teamId        String
   team          Team          @relation(fields: [teamId], references: [id])
   totalPoints   Int           @default(0)
+  eventYear     Int           @default(2026)
   scoringMode   ScoringMode   @default(TEAM_TOTAL)
   submittedById String
   submittedBy   User          @relation("SubmittedBy", fields: [submittedById], references: [id])

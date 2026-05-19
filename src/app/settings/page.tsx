@@ -7,6 +7,7 @@ import { Shield, Key, Save, Lock, Unlock, Download, Terminal, Settings } from 'l
 import { getCurrentUser } from '@/lib/session';
 import { getSetting, lockScores, unlockScores, updateEventName } from '@/lib/actions/settings';
 import { cn } from '@/lib/utils';
+import { ArchiveYearModal } from '@/components/modules/settings/archive-year-modal';
 
 export const dynamic = 'force-dynamic';
 
@@ -97,15 +98,15 @@ export default async function SettingsPage() {
 
         <div className="space-y-10">
            <Card variant="ivory" className="p-10 border-none shadow-xl">
-              <h3 className="text-2xl font-semibold mb-6">Data export</h3>
+              <h3 className="text-2xl font-semibold mb-6" style={{ color: '#1A1A1A' }}>Data export</h3>
               <div className="space-y-8">
-                 <p className="text-sm font-medium opacity-60 leading-relaxed">
+                 <p className="text-sm font-medium opacity-60 leading-relaxed" style={{ color: '#1A1A1A' }}>
                     Download official results for ceremony preparation and record keeping.
                  </p>
                  <div className="flex flex-col gap-3">
                     <a href="/api/export/scores" download>
                        <Button className="w-full h-14 text-sm bg-black text-white hover:bg-black/90">
-                          <Download size={16} className="mr-2 opacity-60" /> Standings Summary
+                          <Download size={16} className="mr-2 opacity-60" /> Export Excel Summary
                        </Button>
                     </a>
                     <a href="/api/export/details" download>
@@ -117,19 +118,27 @@ export default async function SettingsPage() {
               </div>
            </Card>
 
-           <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/5 space-y-4">
-              <h4 className="text-xs font-semibold text-muted-foreground opacity-40 uppercase tracking-widest">Rules</h4>
-              <div className="space-y-3">
-                 <div className="flex justify-between items-center text-sm font-medium">
-                    <span className="opacity-50">Ranking logic</span>
-                    <span className="text-white">Highest total points</span>
-                 </div>
-                 <div className="flex justify-between items-center text-sm font-medium pt-3 border-t border-white/5">
-                    <span className="opacity-50">Aggregation</span>
-                    <span className="text-white">Automatic recursive</span>
+           <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/5 space-y-6">
+              <div className="space-y-4">
+                 <h4 className="text-xs font-semibold text-muted-foreground opacity-40 uppercase tracking-widest">History Management</h4>
+                 <ArchiveYearModal />
+              </div>
+
+              <div className="pt-6 border-t border-white/5 space-y-4">
+                 <h4 className="text-xs font-semibold text-muted-foreground opacity-40 uppercase tracking-widest">Rules</h4>
+                 <div className="space-y-3">
+                    <div className="flex justify-between items-center text-sm font-medium">
+                       <span className="opacity-50">Ranking logic</span>
+                       <span className="text-white">Lowest total time</span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm font-medium pt-3 border-t border-white/5">
+                       <span className="opacity-50">Aggregation</span>
+                       <span className="text-white">Automatic recursive</span>
+                    </div>
                  </div>
               </div>
            </div>
+
         </div>
       </div>
     </PageSection>

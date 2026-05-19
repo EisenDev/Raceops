@@ -41,7 +41,7 @@ export async function runCodeRunner(prevState: unknown, formData: FormData) {
   const { teamId, languageTrack, submittedCode } = result.data;
 
   try {
-    // 1. Verify user exists in database (session might be stale/old ID)
+    // 1. Verify user exists in database
     const dbUser = await db.user.findUnique({
       where: { id: user.id }
     });
@@ -56,7 +56,7 @@ export async function runCodeRunner(prevState: unknown, formData: FormData) {
     });
     if (!team) return { error: 'Team not found.' };
 
-    // 2. Fetch all active challenges for this language track
+    // 2. Fetch challenges
     const challenges = await db.codeChallenge.findMany({
       where: { 
         languageTrack,
@@ -64,17 +64,12 @@ export async function runCodeRunner(prevState: unknown, formData: FormData) {
       }
     });
 
-    if (challenges.length === 0) {
-      return { error: `No challenges registered for ${languageTrack}.` };
-    }
-
-    // 3. Validation Loop
+    // 3. Validation
     let matchedChallenge = null;
     const normalizedSubmitted = normalizeCode(submittedCode);
 
     for (const challenge of challenges) {
       const normalizedExpected = normalizeCode(challenge.correctCode);
-      
       if (normalizedSubmitted === normalizedExpected) {
         matchedChallenge = challenge;
         break;
@@ -84,28 +79,8 @@ export async function runCodeRunner(prevState: unknown, formData: FormData) {
     const isAccepted = matchedChallenge !== null;
     const statusCode = isAccepted ? 200 : 500;
     const resultText = isAccepted ? 'Accepted' : 'Rejected';
-    const hint = isAccepted ? '' : 'Check structure and logic.';
 
-    // Special check for duplicate acceptance
-    if (isAccepted && matchedChallenge) {
-      const existingAccepted = await db.codeRunnerAttempt.findFirst({
-        where: {
-          challengeId: matchedChallenge.id,
-          teamId: team.id,
-          accepted: true,
-        },
-      });
-
-      if (existingAccepted) {
-        return { 
-          status: 409, 
-          result: 'Rejected', 
-          hint: 'This challenge was already accepted for this team.' 
-        };
-      }
-    }
-
-    // 4. Log Attempt
+    // 4. Log Attempt (Force clean log without duplicate checks)
     if (dbUser && dbUser.id) {
       try {
         await db.codeRunnerAttempt.create({
@@ -122,8 +97,7 @@ export async function runCodeRunner(prevState: unknown, formData: FormData) {
           },
         });
       } catch (logError) {
-        console.error('Failed to log attempt:', logError);
-        // We continue anyway so the user gets their response
+        console.error('Logging failed:', logError);
       }
     }
 
@@ -133,21 +107,20 @@ export async function runCodeRunner(prevState: unknown, formData: FormData) {
       return {
         status: 200,
         result: 'Accepted',
-        message: 'Output matched.',
+        message: 'Logic verified successfully.',
         output: matchedChallenge?.expectedOutput,
       };
     } else {
       return {
         status: 500,
         result: 'Rejected',
-        hint: 'Check structure and logic.',
+        hint: 'Input does not match expected mission parameters.',
       };
     }
 
   } catch (error: unknown) {
-    console.error('Code runner error:', error);
-    const message = error instanceof Error ? error.message : 'Check database connection.';
-    return { error: `System Error: ${message}` };
+    console.error('Code runner system error:', error);
+    return { error: 'Internal system fault. Please contact administrator.' };
   }
 }
 

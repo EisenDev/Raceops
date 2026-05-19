@@ -57,3 +57,11 @@ The default password MUST be changed via the **Settings** page immediately after
 - Once all games are done, review the final leaderboard.
 - Lock the scores to prevent further changes (Planned for Phase 7).
 - Export results for the awards ceremony.
+
+
+## Code Runner Dataset Update (May 2026)
+- The challenge dataset has been overhauled to contain exactly 10 full-code challenges (2 per language).
+- **Languages Supported**: Python, PHP Native, Laravel-labeled (Standalone PHP), JavaScript, Vue-labeled (Standalone JS).
+- **Runnable Constraint**: All correct codes are fully standalone and runnable without framework boilerplate. Laravel and Vue challenges are inspired by the frameworks but do not require them to run (tested via `php` and `node` commands).
+- **Validation**: Strict `NORMALIZED_EXACT_MATCH` is used. Buggy versions fail realistically without exposing the exact bug in the UI.
+- **Independence**: The Code Runner remains an isolated utility at Station 11. It has no connection to the scoreboard or game points.

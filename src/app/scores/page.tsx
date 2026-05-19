@@ -11,10 +11,16 @@ import { cn } from '@/lib/utils';
 export const dynamic = 'force-dynamic';
 
 export default async function ScoresPage() {
+  const currentYearStr = await getSetting('currentYear') || '2026';
+  const currentYear = parseInt(currentYearStr, 10);
+
   const [rawTeams, scoresLocked] = await Promise.all([
     db.team.findMany({
+      where: { eventYear: currentYear },
       include: {
-        gameScores: true,
+        gameScores: {
+          where: { eventYear: currentYear }
+        },
       }
     }),
     getSetting('scoresLocked').then(v => v === 'true')

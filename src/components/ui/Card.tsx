@@ -14,7 +14,7 @@ export function Card({ children, className, onClick, variant = 'default' }: Card
       onClick={onClick}
       className={cn(
         "rounded-xl border border-white/5 shadow-premium transition-all duration-300",
-        variant === 'default' ? "bg-card text-card-foreground" : "bg-ivory text-ivory-foreground",
+        variant === 'default' ? "bg-card text-card-foreground" : "bg-ivory text-ivory-foreground ivory-card",
         onClick ? "cursor-pointer hover:border-white/10" : "",
         className
       )}
