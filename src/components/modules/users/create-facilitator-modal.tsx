@@ -11,13 +11,15 @@ import { UserPlus, X } from 'lucide-react';
 export function CreateFacilitatorModal() {
   const [isOpen, setIsOpen] = useState(false);
   const [state, action, isPending] = useActionState(createFacilitator, undefined);
+  const [wasPending, setWasPending] = useState(false);
 
   useEffect(() => {
-    if (state?.success && isOpen) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+    // Only close the modal if it was pending (form submitted) AND it's now successful
+    if (wasPending && !isPending && state?.success) {
       setIsOpen(false);
     }
-  }, [state?.success, isOpen]);
+    setWasPending(isPending);
+  }, [isPending, state?.success, wasPending]);
 
   if (!isOpen) {
     return (

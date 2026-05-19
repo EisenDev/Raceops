@@ -40,9 +40,15 @@ export async function login(prevState: unknown, formData: FormData) {
     await session.save();
 
   } catch (error) {
-    console.error('Login error:', error);
-    // Be careful not to expose DB errors, but provide feedback
-    return { error: 'Something went wrong. Please try again.' };
+    console.error('[AUTH_ACTION_ERROR]:', error instanceof Error ? error.message : error);
+    
+    // Check for common Prisma connection errors to give better feedback
+    const errorMessage = error instanceof Error ? error.message : '';
+    if (errorMessage.includes('Can\'t reach database')) {
+      return { error: 'Database connection failed. Please check your DATABASE_URL.' };
+    }
+    
+    return { error: 'Something went wrong. Please check server logs or re-seed database.' };
   }
 
   redirect('/dashboard');
