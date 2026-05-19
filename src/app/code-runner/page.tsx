@@ -9,21 +9,28 @@ export default async function CodeRunnerPage() {
   const user = await getCurrentUser();
   const isAdmin = user?.role === 'ADMIN';
 
-  const [teams, challenges, attempts] = await Promise.all([
+  const [teams, challenges, attempts, dbUser] = await Promise.all([
     db.team.findMany({
       orderBy: { name: 'asc' },
       select: { id: true, name: true }
     }),
     getCodeChallenges(),
-    getRecentAttempts()
+    getRecentAttempts(),
+    user ? db.user.findUnique({
+      where: { id: user.id },
+      include: { assignedTeams: true }
+    }) : null
   ]);
+
+  const assignedTeam = !isAdmin ? dbUser?.assignedTeams[0] || null : null;
 
   return (
     <CodeRunnerShell 
       teams={teams} 
       challenges={challenges} 
       attempts={attempts} 
-      isAdmin={isAdmin} 
+      isAdmin={isAdmin}
+      assignedTeam={assignedTeam}
     />
   );
 }

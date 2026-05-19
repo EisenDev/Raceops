@@ -1,12 +1,11 @@
 services:
   raceops:
-    image: ghcr.io/${GITHUB_REPOSITORY_OWNER}/raceops:latest
+    # We use a fixed image name that matches your GitHub repo path
+    image: ghcr.io/eisendev/raceops:latest
     container_name: raceops
     ports:
       - "3000:3000"
-    environment:
-      - DATABASE_URL=${DATABASE_URL}
-      - DIRECT_URL=${DIRECT_URL}
-      - IRON_SESSION_PASSWORD=${IRON_SESSION_PASSWORD}
-      - NODE_ENV=production
+    # This tells Docker to load variables from the .env file I created on your server
+    env_file:
+      - .env
     restart: always

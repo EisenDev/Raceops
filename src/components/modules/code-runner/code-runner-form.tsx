@@ -8,57 +8,71 @@ import { runCodeRunner } from '@/lib/actions/code-runner';
 import { Terminal, CheckCircle2, XCircle, Loader2, Info, Cpu } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+import { CodeEditor } from './CodeEditor';
+
 interface CodeRunnerFormProps {
   teams: { id: string, name: string }[];
   selectedLanguage: string;
+  assignedTeam?: { id: string, name: string } | null;
 }
 
-export function CodeRunnerForm({ teams, selectedLanguage }: CodeRunnerFormProps) {
+export function CodeRunnerForm({ teams, selectedLanguage, assignedTeam }: CodeRunnerFormProps) {
   const [state, action, isPending] = useActionState(runCodeRunner, null);
   const [code, setCode] = useState('');
-  const [teamId, setTeamId] = useState('');
+  const [teamId, setTeamId] = useState(assignedTeam?.id || '');
+
+  const isLocked = !!assignedTeam;
 
   return (
     <div className="space-y-8">
       <Card className="p-8 border-white/5 bg-white/[0.02]">
         <form action={action} className="space-y-8">
           <input type="hidden" name="languageTrack" value={selectedLanguage} />
+          <input type="hidden" name="submittedCode" value={code} />
 
-          <div className="space-y-2">
-            <label className="text-xs font-medium text-muted-foreground ml-1">Team</label>
-            <select 
-              name="teamId" 
-              required
-              value={teamId}
-              onChange={(e) => setTeamId(e.target.value)}
-              className="w-full h-12 px-5 rounded-xl border border-white/10 bg-black text-white text-sm font-medium focus:border-accent/40 outline-none transition-all appearance-none cursor-pointer"
-            >
-              <option value="">Select a team</option>
-              {teams.map(team => (
-                <option key={team.id} value={team.id} className="bg-[#141414]">{team.name}</option>
-              ))}
-            </select>
-          </div>
+          {!isLocked && (
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-muted-foreground ml-1">Team</label>
+              <select 
+                name="teamId" 
+                required
+                value={teamId}
+                onChange={(e) => setTeamId(e.target.value)}
+                className="w-full h-12 px-5 rounded-xl border border-white/10 bg-black text-white text-sm font-medium focus:border-accent/40 outline-none transition-all appearance-none cursor-pointer"
+              >
+                <option value="">Select a team</option>
+                {teams.map(team => (
+                  <option key={team.id} value={team.id} className="bg-[#141414]">{team.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {isLocked && (
+            <div className="space-y-2">
+              <input type="hidden" name="teamId" value={teamId} />
+              <label className="text-xs font-medium text-muted-foreground ml-1">Active Team</label>
+              <div className="w-full h-12 flex items-center px-5 rounded-xl border border-white/10 bg-black/40 text-white/60 text-sm font-medium">
+                {assignedTeam.name}
+              </div>
+            </div>
+          )}
 
           <div className="space-y-2">
             <label className="text-xs font-medium text-muted-foreground ml-1">Submission code</label>
-            <textarea 
-              name="submittedCode"
-              required
-              rows={12}
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              spellCheck={false}
-              autoComplete="off"
-              autoCorrect="off"
-              className="w-full p-6 rounded-2xl border border-white/10 bg-black text-emerald-400 text-sm font-mono focus:border-accent/40 outline-none transition-all resize-none leading-relaxed"
-              placeholder="// Paste the code here..."
-            />
+            <div className="rounded-2xl border border-white/10 bg-black overflow-hidden focus-within:border-accent/40 transition-all">
+              <CodeEditor 
+                language={selectedLanguage}
+                value={code}
+                onChange={setCode}
+                placeholder="// Paste the code here..."
+              />
+            </div>
           </div>
 
           <Button 
             type="submit" 
-            disabled={isPending}
+            disabled={isPending || !teamId || !code}
             className="w-full h-14 rounded-xl text-sm font-semibold"
           >
             {isPending ? (
