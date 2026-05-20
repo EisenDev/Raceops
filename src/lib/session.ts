@@ -1,5 +1,7 @@
 import { getIronSession } from 'iron-session';
 import { cookies } from 'next/headers';
+import { cache } from 'react';
+import db from './db';
 
 export interface SessionData {
   user?: {
@@ -23,7 +25,25 @@ export async function getSession() {
   return session;
 }
 
-export async function getCurrentUser() {
+export const getCurrentUser = cache(async () => {
   const session = await getSession();
-  return session.user;
-}
+  if (!session.user) return null;
+
+  // Verify user still exists in the database (critical for DB migrations)
+  try {
+    const user = await db.user.findUnique({
+      where: { id: session.user.id },
+      select: { id: true, username: true, name: true, role: true }
+    });
+
+    if (!user) {
+      // User ID from cookie doesn't exist in current DB
+      session.destroy();
+      return null;
+    }
+
+    return session.user;
+  } catch (error) {
+    return null;
+  }
+});
