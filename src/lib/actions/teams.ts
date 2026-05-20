@@ -112,7 +112,6 @@ export async function updateTeam(teamId: string, prevState: unknown, formData: F
       },
     });
 
-    revalidatePath('/teams');
     return { success: true };
   } catch (error) {
     console.error('Update team error:', error);

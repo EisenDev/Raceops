@@ -8,6 +8,7 @@ import { StatusMessage } from '@/components/ui/StatusMessage';
 import { updateTeam, deleteTeam } from '@/lib/actions/teams';
 import { X, Save, Trash2, User } from 'lucide-react';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
+import { useRouter } from 'next/navigation';
 
 interface EditTeamModalProps {
   team: {
@@ -97,12 +98,14 @@ function EditTeamModalContent({
 }) {
   const updateTeamWithId = updateTeam.bind(null, team.id);
   const [state, action, isPending] = useActionState(updateTeamWithId, undefined);
+  const router = useRouter();
 
   useEffect(() => {
     if (state?.success) {
+      router.refresh();
       onClose();
     }
-  }, [state?.success, onClose]);
+  }, [state?.success, onClose, router]);
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto">
