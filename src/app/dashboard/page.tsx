@@ -10,6 +10,8 @@ import { Badge } from '@/components/ui/Badge';
 import { getSetting } from '@/lib/actions/settings';
 import { formatSeconds } from '@/lib/utils';
 import Link from 'next/link';
+import { getAllYears } from '@/lib/actions/history';
+import { ExportPanel } from '@/components/modules/settings/export-panel';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,7 +24,8 @@ export default async function DashboardPage() {
     gameCount, 
     editRequestCount, 
     rawTeams,
-    scoresLocked
+    scoresLocked,
+    allYears
   ] = await Promise.all([
     db.team.count({ where: { eventYear: currentYear } }),
     db.game.count({ where: { eventYear: currentYear } }),
@@ -41,7 +44,8 @@ export default async function DashboardPage() {
         }
       }
     }),
-    getSetting('scoresLocked').then(v => v === 'true')
+    getSetting('scoresLocked').then(v => v === 'true'),
+    getAllYears()
   ]);
   
   const topTeams = rawTeams
@@ -126,22 +130,8 @@ export default async function DashboardPage() {
         {/* Info */}
         <div className="space-y-8">
           <Card className="p-8 bg-white/[0.02] border-white/5">
-            <h3 className="text-xl font-semibold text-white mb-6">System Health</h3>
-            <div className="space-y-6">
-               <div className="flex items-center justify-between p-4 rounded-xl bg-black/20 border border-white/5">
-                  <div className="flex items-center gap-3">
-                     <History size={16} className="text-muted-foreground" />
-                     <span className="text-sm font-medium text-white">Pending Edits</span>
-                  </div>
-                  <span className="text-lg font-semibold text-accent">{editRequestCount}</span>
-               </div>
-               
-               <Link href="/api/export/scores" download className="block">
-                  <Button variant="secondary" className="w-full h-12 text-xs">
-                     Export Excel Results
-                  </Button>
-               </Link>
-            </div>
+            <h3 className="text-xl font-semibold text-white mb-6">Data Export</h3>
+            <ExportPanel years={allYears} currentYear={currentYear} />
           </Card>
         </div>
       </div>

@@ -6,28 +6,32 @@ import { formatSeconds } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(request: Request) {
   const user = await getCurrentUser();
   if (!user || user.role !== 'ADMIN') {
     return new Response('Unauthorized', { status: 401 });
   }
 
+  const { searchParams } = new URL(request.url);
+  const requestedYear = searchParams.get('year');
+
   try {
     const currentYearSetting = await db.gameSetting.findUnique({ where: { key: 'currentYear' } });
-    const currentYear = parseInt(currentYearSetting?.value || '2026', 10);
+    const defaultYear = parseInt(currentYearSetting?.value || '2026', 10);
+    const year = requestedYear ? parseInt(requestedYear, 10) : defaultYear;
 
     const [teams, games] = await Promise.all([
       db.team.findMany({
-        where: { eventYear: currentYear },
+        where: { eventYear: year },
         include: {
           gameScores: {
-            where: { eventYear: currentYear }
+            where: { eventYear: year }
           },
         },
         orderBy: { totalScore: 'asc' }
       }),
       db.game.findMany({
-        where: { eventYear: currentYear },
+        where: { eventYear: year },
         orderBy: { name: 'asc' }
       })
     ]);
@@ -73,7 +77,7 @@ export async function GET() {
           actorId: user.id,
           action: 'EXCEL_EXPORT_GENERATED',
           module: 'EXPORT',
-          details: { type: 'STANDINGS_XLSX', year: currentYear }
+          details: { type: 'STANDINGS_XLSX', year }
         }
       });
     } catch (auditError) {
@@ -83,7 +87,7 @@ export async function GET() {
     return new Response(buf, {
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'Content-Disposition': `attachment; filename="Infosoft-RaceOps-Results-${currentYear}.xlsx"`,
+        'Content-Disposition': `attachment; filename="Infosoft-RaceOps-Results-${year}.xlsx"`,
       },
     });
   } catch (error) {

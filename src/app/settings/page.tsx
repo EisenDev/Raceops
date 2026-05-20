@@ -8,6 +8,8 @@ import { getCurrentUser } from '@/lib/session';
 import { getSetting, lockScores, unlockScores, updateEventName } from '@/lib/actions/settings';
 import { cn } from '@/lib/utils';
 import { ArchiveYearModal } from '@/components/modules/settings/archive-year-modal';
+import { ExportPanel } from '@/components/modules/settings/export-panel';
+import { getAllYears } from '@/lib/actions/history';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,10 +20,16 @@ export default async function SettingsPage() {
   // We only allow admins here via middleware, but extra safety
   if (!isAdmin) return null;
 
-  const eventName = await getSetting('eventName') || 'Infosoft Amazing Race 2026';
-  const scoresLocked = (await getSetting('scoresLocked')) === 'true';
-  const lockedAt = await getSetting('lockedAt');
-  const lockedBy = await getSetting('lockedBy');
+  const currentYearStr = await getSetting('currentYear') || '2026';
+  const currentYear = parseInt(currentYearStr, 10);
+  
+  const [eventName, scoresLocked, lockedAt, lockedBy, allYears] = await Promise.all([
+    getSetting('eventName').then(v => v || 'Infosoft Amazing Race 2026'),
+    getSetting('scoresLocked').then(v => v === 'true'),
+    getSetting('lockedAt'),
+    getSetting('lockedBy'),
+    getAllYears()
+  ]);
 
   return (
     <PageSection className="py-4 pb-24">
@@ -99,23 +107,7 @@ export default async function SettingsPage() {
         <div className="space-y-10">
            <Card variant="ivory" className="p-10 border-none shadow-xl">
               <h3 className="text-2xl font-semibold mb-6" style={{ color: '#1A1A1A' }}>Data export</h3>
-              <div className="space-y-8">
-                 <p className="text-sm font-medium opacity-60 leading-relaxed" style={{ color: '#1A1A1A' }}>
-                    Download official results for ceremony preparation and record keeping.
-                 </p>
-                 <div className="flex flex-col gap-3">
-                    <a href="/api/export/scores" download>
-                       <Button className="w-full h-14 text-sm bg-black text-white hover:bg-black/90">
-                          <Download size={16} className="mr-2 opacity-60" /> Export Excel Summary
-                       </Button>
-                    </a>
-                    <a href="/api/export/details" download>
-                       <Button variant="secondary" className="w-full h-14 text-sm bg-black/5 text-black border-black/10">
-                          <Terminal size={16} className="mr-2 opacity-60" /> Full audit log
-                       </Button>
-                    </a>
-                 </div>
-              </div>
+              <ExportPanel years={allYears} currentYear={currentYear} />
            </Card>
 
            <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/5 space-y-6">

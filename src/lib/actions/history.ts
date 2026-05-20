@@ -32,6 +32,28 @@ export const getHistoryYears = cache(async () => {
   return allYears.filter(year => year !== currentYear);
 });
 
+export const getAllYears = cache(async () => {
+  const [teamYears, gameYears] = await Promise.all([
+    db.team.findMany({
+      select: { eventYear: true },
+      distinct: ['eventYear'],
+    }),
+    db.game.findMany({
+      select: { eventYear: true },
+      distinct: ['eventYear'],
+    }),
+  ]);
+
+  const years = Array.from(new Set([
+    ...teamYears.map(y => y.eventYear),
+    ...gameYears.map(y => y.eventYear),
+  ])).sort((a, b) => b - a);
+
+  // If no years found, return current default
+  if (years.length === 0) return [2026];
+  return years;
+});
+
 export async function archiveCurrentYear(targetYear: number) {
   const user = await getCurrentUser();
   if (!user || user.role !== 'ADMIN') return { error: 'Unauthorized.' };
