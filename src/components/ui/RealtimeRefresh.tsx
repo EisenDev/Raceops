@@ -16,7 +16,7 @@ interface RealtimeRefreshProps {
  * to provide a "live" feel for the dashboard and scoreboards.
  */
 export function RealtimeRefresh({ 
-  interval = 3000, 
+  interval = 15000, 
   showIndicator = true,
   className 
 }: RealtimeRefreshProps) {

@@ -18,11 +18,15 @@ interface GameDetailPageProps {
 
 export default async function GameDetailPage({ params }: GameDetailPageProps) {
   const { gameId } = await params;
-  const user = await getCurrentUser();
-  const isAdmin = user?.role === 'ADMIN';
-  const isLocked = await isScoresLocked();
   
-  const [game, pendingRequests] = await Promise.all([
+  const [user, isLocked] = await Promise.all([
+    getCurrentUser(),
+    isScoresLocked()
+  ]);
+
+  const isAdmin = user?.role === 'ADMIN';
+  
+  const [game, pendingRequests, teams] = await Promise.all([
     db.game.findUnique({
       where: { id: gameId },
       include: {
@@ -38,19 +42,18 @@ export default async function GameDetailPage({ params }: GameDetailPageProps) {
         module: 'GAME_SCORE',
         status: 'PENDING'
       }
+    }),
+    db.team.findMany({
+      include: {
+        members: true,
+      },
+      orderBy: { name: 'asc' }
     })
   ]);
 
   if (!game) {
     notFound();
   }
-
-  const teams = await db.team.findMany({
-    include: {
-      members: true,
-    },
-    orderBy: { name: 'asc' }
-  });
 
   return (
     <PageSection className="py-4 pb-24">

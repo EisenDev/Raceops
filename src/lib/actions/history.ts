@@ -6,7 +6,9 @@ import { revalidatePath } from 'next/cache';
 
 import { getSetting } from './settings';
 
-export async function getHistoryYears() {
+import { cache } from 'react';
+
+export const getHistoryYears = cache(async () => {
   const currentYearStr = await getSetting('currentYear') || '2026';
   const currentYear = parseInt(currentYearStr, 10);
 
@@ -28,7 +30,7 @@ export async function getHistoryYears() {
 
   // We only show years that are NOT the current active one
   return allYears.filter(year => year !== currentYear);
-}
+});
 
 export async function archiveCurrentYear(targetYear: number) {
   const user = await getCurrentUser();
