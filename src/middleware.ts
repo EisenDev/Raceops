@@ -39,7 +39,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // Admin-only routes
-  const adminOnlyRoutes = ['/users', '/settings'];
+  const adminOnlyRoutes = ['/settings'];
   const isAdminOnlyRoute = adminOnlyRoutes.some(route => pathname.startsWith(route));
 
   if (isAdminOnlyRoute && user?.role !== 'ADMIN') {

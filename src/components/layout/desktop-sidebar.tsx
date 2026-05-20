@@ -26,11 +26,11 @@ const navItems = [
   { label: 'Teams', href: '/teams', icon: Users },
   { label: 'Standings', href: '/scores', icon: Trophy },
   { label: 'Code Runner', href: '/code-runner', icon: Terminal },
+  { label: 'Staff', href: '/users', icon: UserCog },
   { label: 'Edit Requests', href: '/edit-requests', icon: HistoryIcon },
 ];
 
 const adminItems = [
-  { label: 'Staff', href: '/users', icon: UserCog },
   { label: 'Settings', href: '/settings', icon: Settings },
 ];
 
