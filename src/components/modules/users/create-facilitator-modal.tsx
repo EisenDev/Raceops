@@ -1,25 +1,23 @@
 'use client';
 
-import { useState, useActionState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import { useFormState, useFormStatus } from 'react-dom';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { StatusMessage } from '@/components/ui/StatusMessage';
 import { createFacilitator } from '@/lib/actions/users';
-import { UserPlus, X } from 'lucide-react';
+import { UserPlus, X, Loader2 } from 'lucide-react';
 
 export function CreateFacilitatorModal() {
   const [isOpen, setIsOpen] = useState(false);
-  const [state, action, isPending] = useActionState(createFacilitator, undefined);
-  const [wasPending, setWasPending] = useState(false);
+  const [state, action] = useFormState(createFacilitator, undefined);
 
   useEffect(() => {
-    // Only close the modal if it was pending (form submitted) AND it's now successful
-    if (wasPending && !isPending && state?.success) {
+    if (state?.success) {
       setIsOpen(false);
     }
-    setWasPending(isPending);
-  }, [isPending, state?.success, wasPending]);
+  }, [state?.success]);
 
   if (!isOpen) {
     return (
@@ -75,23 +73,38 @@ export function CreateFacilitatorModal() {
               <Input type="password" name="confirmPassword" placeholder="Repeat password" required />
             </div>
 
-            <div className="flex gap-3 pt-4">
-              <Button 
-                type="button" 
-                variant="secondary" 
-                className="flex-1" 
-                onClick={() => setIsOpen(false)}
-                disabled={isPending}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" className="flex-1" disabled={isPending}>
-                {isPending ? 'Creating...' : 'Create Account'}
-              </Button>
-            </div>
+            <SubmitButton onCancel={() => setIsOpen(false)} />
           </form>
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+function SubmitButton({ onCancel }: { onCancel: () => void }) {
+  const { pending } = useFormStatus();
+  
+  return (
+    <div className="flex gap-3 pt-4">
+      <Button 
+        type="button" 
+        variant="secondary" 
+        className="flex-1" 
+        onClick={onCancel}
+        disabled={pending}
+      >
+        Cancel
+      </Button>
+      <Button type="submit" className="flex-1" disabled={pending}>
+        {pending ? (
+          <div className="flex items-center gap-2">
+            <Loader2 size={18} className="animate-spin" />
+            <span>Creating...</span>
+          </div>
+        ) : (
+          <span>Create Account</span>
+        )}
+      </Button>
     </div>
   );
 }
